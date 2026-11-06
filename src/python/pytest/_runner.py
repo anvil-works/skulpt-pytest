@@ -228,7 +228,8 @@ def _run_test(case, session, close_module, close_session):
             errors.append(_error(error, phase))
     if called and options is not None and options.get('strict', False):
         # A strict successful call is a failure even if teardown separately xfails.
-        errors.append(_error(Failed('[XPASS(strict)] ' + options.get('reason', '')), 'call'))
+        reason = options.get('reason', '')
+        errors.append(_error(Failed('[XPASS(strict)] ' + reason), 'call'))
     if errors:
         outcome = 'error' if any(error['phase'] != 'call' for error in errors) else 'failed'
     elif expected_errors:
