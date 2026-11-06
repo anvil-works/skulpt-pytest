@@ -14,6 +14,10 @@ class Skipped(BaseException):
     pass
 
 
+class XFailed(BaseException):
+    pass
+
+
 def fail(reason=''):
     raise Failed(reason)
 
@@ -22,15 +26,23 @@ def skip(reason=''):
     raise Skipped(reason)
 
 
+def xfail(reason=''):
+    raise XFailed(reason)
+
+
 fail.Exception = Failed
 skip.Exception = Skipped
+xfail.Exception = XFailed
 
 
 class _Fixture:
-    def __init__(self, function, name, autouse):
+    def __init__(self, function, name, autouse, scope='function', params=None, ids=None):
         self.function = function
         self.name = name or function.__name__
         self.autouse = autouse
+        self.scope, self.params, self.ids = scope, None if params is None else tuple(params), ids
+        if self.name == 'request':
+            raise ValueError("'request' is a reserved fixture name")
 
     def __call__(self, *args, **kwargs):
         fail("Fixture '%s' called directly" % self.name)
@@ -38,11 +50,13 @@ class _Fixture:
 
 def fixture(fixture_function=None, *, scope='function', autouse=False, name=None,
             params=None, ids=None):
-    if scope != 'function' or params is not None or ids is not None:
-        raise NotImplementedError('only function-scoped, unparametrized fixtures are supported')
+    if scope not in ('function', 'module', 'session'):
+        raise NotImplementedError('only function, module and session fixture scopes are supported')
+    if params is not None and scope != 'function':
+        raise NotImplementedError('parametrized fixtures currently require function scope')
 
     def decorate(function):
-        return _Fixture(function, name, autouse)
+        return _Fixture(function, name, autouse, scope, params, ids)
 
     return decorate(fixture_function) if fixture_function is not None else decorate
 
@@ -98,3 +112,8 @@ raises.Exception = Failed
 def main(args=None):
     from ._runner import run
     return run(args)
+
+
+from ._marks import mark, param
+from ._approx import approx
+from ._monkeypatch import MonkeyPatch

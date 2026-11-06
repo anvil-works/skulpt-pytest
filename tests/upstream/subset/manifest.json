@@ -1,0 +1,498 @@
+{
+  "commit": "ae1d0ff57b8bd4252da9ade7353523ac0ac73281",
+  "licence": "../../../licenses/pytest.txt",
+  "entries": [
+    {
+      "case": "param_csv",
+      "source_path": "testing/python/metafunc.py",
+      "source_test": "TestMetafunc.test_parametrize_CSV",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/metafunc.py#L1204",
+      "files": [
+        "cases/param_csv/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "passed": 2
+      }
+    },
+    {
+      "case": "param_single_arg_shapes",
+      "source_path": "testing/python/metafunc.py",
+      "source_test": "TestMetafuncFunctional.test_parametrize_single_arg_trailing_comma_functional",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/metafunc.py#L1408",
+      "files": [
+        "cases/param_single_arg_shapes/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "passed": 6
+      }
+    },
+    {
+      "case": "param_indirect",
+      "source_path": "testing/python/metafunc.py",
+      "source_test": "TestMetafunc.test_parametrize_indirect_list_functional",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/metafunc.py#L948",
+      "files": [
+        "cases/param_indirect/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "passed": 1,
+        "ids": [
+          "test_simple[a-b]"
+        ],
+        "contract": "direct y shadows same-name fixture; indirect x reaches request.param"
+      }
+    },
+    {
+      "case": "param_stacked_ids",
+      "source_path": "testing/python/metafunc.py",
+      "source_test": "TestHiddenParam.test_multiple_parametrize",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/metafunc.py#L2502",
+      "files": [
+        "cases/param_stacked_ids/test_case.py"
+      ],
+      "reuse": "derived suite; exact changes below",
+      "expectation": {
+        "passed": 4,
+        "ids": [
+          "test_func[a-x]",
+          "test_func[a-y]",
+          "test_func[b-x]",
+          "test_func[b-y]"
+        ]
+      },
+      "adaptations": [
+        "Replace pytest.HIDDEN_PARAM with explicit ID \"b\"; fixture/test function bodies unchanged. The original hidden-ID contract is not claimed."
+      ]
+    },
+    {
+      "case": "param_explicit_id",
+      "source_path": "testing/python/metafunc.py",
+      "source_test": "TestHiddenParam.test_param_id",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/metafunc.py#L2429",
+      "files": [
+        "cases/param_explicit_id/test_case.py"
+      ],
+      "reuse": "derived suite; exact changes below",
+      "expectation": {
+        "passed": 3,
+        "ids": [
+          "test_func[paramset1]",
+          "test_func[paramset2]",
+          "test_func[c-z]"
+        ]
+      },
+      "adaptations": [
+        "Replace pytest.HIDDEN_PARAM with explicit ID \"paramset2\". Function body unchanged."
+      ]
+    },
+    {
+      "case": "fixture_params",
+      "source_path": "testing/python/fixtures.py",
+      "source_test": "TestFixtureMarker.test_parametrize",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/fixtures.py#L2658",
+      "files": [
+        "cases/fixture_params/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "passed": 4,
+        "contract": "request.param yields a,b,c in order"
+      }
+    },
+    {
+      "case": "fixture_param_ids",
+      "source_path": "testing/python/fixtures.py",
+      "source_test": "TestFixtureMarker.test_params_and_ids",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/fixtures.py#L3664",
+      "files": [
+        "cases/fixture_param_ids/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "passed": 2,
+        "id_suffixes": [
+          "alpha",
+          "beta"
+        ]
+      }
+    },
+    {
+      "case": "finalizer_setup_failure",
+      "source_path": "testing/python/fixtures.py",
+      "source_test": "TestRequestBasic.test_request_addfinalizer_failing_setup",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/fixtures.py#L1122",
+      "files": [
+        "cases/finalizer_setup_failure/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "passed": 1,
+        "setup_error": 1,
+        "note": "upstream reprec.assertoutcome names the failing report failed=1; preserve setup-phase classification in browser transport"
+      }
+    },
+    {
+      "case": "dynamic_parent_fixture",
+      "source_path": "testing/python/fixtures.py",
+      "source_test": "TestRequestBasic.test_getfixturevalue_recursive",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/fixtures.py#L890",
+      "files": [
+        "cases/dynamic_parent_fixture/conftest.py",
+        "cases/dynamic_parent_fixture/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "passed": 1
+      }
+    },
+    {
+      "case": "dynamic_session_teardown",
+      "source_path": "testing/python/fixtures.py",
+      "source_test": "TestRequestBasic.test_getfixturevalue_teardown",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/fixtures.py#L914",
+      "files": [
+        "cases/dynamic_session_teardown/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "passed": 2,
+        "contract": "dynamically resolved resource remains alive through dependent session finalizer"
+      }
+    },
+    {
+      "case": "module_scope",
+      "source_path": "testing/python/fixtures.py",
+      "source_test": "TestFixtureMarker.test_scope_module_and_finalizer",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/fixtures.py#L2870",
+      "files": [
+        "cases/module_scope/conftest.py",
+        "cases/module_scope/test_mod1.py",
+        "cases/module_scope/test_mod2.py",
+        "cases/module_scope/test_mode3.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "passed": 4,
+        "contract": "one module setup for repeated use, finalize before next module, request.scope==module"
+      }
+    },
+    {
+      "case": "session_cached_skip",
+      "source_path": "testing/python/fixtures.py",
+      "source_test": "TestFixtureMarker.test_scope_session_exc",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/fixtures.py#L2770",
+      "files": [
+        "cases/session_cached_skip/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "passed": 1,
+        "skipped": 2,
+        "contract": "session fixture executes once even when it raises skip"
+      }
+    },
+    {
+      "case": "scope_mismatch",
+      "source_path": "testing/python/fixtures.py",
+      "source_test": "TestFixtureUsages.test_receives_funcargs_scope_mismatch",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/fixtures.py#L1495",
+      "files": [
+        "cases/scope_mismatch/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "setup_error": 1,
+        "message_contains": "ScopeMismatch"
+      }
+    },
+    {
+      "case": "mark_skip",
+      "source_path": "testing/test_skipping.py",
+      "source_test": "TestSkip.test_only_skips_marked_test",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_skipping.py#L914",
+      "files": [
+        "cases/mark_skip/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "passed": 1,
+        "skipped": 2
+      }
+    },
+    {
+      "case": "mark_skipif",
+      "source_path": "testing/test_skipping.py",
+      "source_test": "TestBooleanCondition.test_skipif",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_skipping.py#L1317",
+      "files": [
+        "cases/mark_skipif/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "passed": 1,
+        "skipped": 1
+      }
+    },
+    {
+      "case": "mark_skipif_invalid",
+      "source_path": "testing/test_skipping.py",
+      "source_test": "TestBooleanCondition.test_skipif_noreason",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_skipping.py#L1336",
+      "files": [
+        "cases/mark_skipif_invalid/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "setup_error": 1,
+        "contract": "boolean skipif requires string reason"
+      }
+    },
+    {
+      "case": "mark_xfail",
+      "source_path": "testing/test_skipping.py",
+      "source_test": "TestBooleanCondition.test_xfail",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_skipping.py#L1352",
+      "files": [
+        "cases/mark_xfail/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "xfailed": 1
+      }
+    },
+    {
+      "case": "mark_xpass",
+      "source_path": "testing/test_skipping.py",
+      "source_test": "TestXFail.test_xfail_xpassed",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_skipping.py#L315",
+      "files": [
+        "cases/mark_xpass/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "xpassed": 1,
+        "exit_code": 0,
+        "note": "upstream report.passed + wasxfail"
+      }
+    },
+    {
+      "case": "mark_xpass_strict",
+      "source_path": "testing/test_skipping.py",
+      "source_test": "TestXFail.test_xfail_xpassed_strict",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_skipping.py#L345",
+      "files": [
+        "cases/mark_xpass_strict/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "failed": 1,
+        "message": "[XPASS(strict)] nope"
+      }
+    },
+    {
+      "case": "mark_xfail_notrun",
+      "source_path": "testing/test_skipping.py",
+      "source_test": "TestXFail.test_xfail_not_run_does_not_format_traceback",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_skipping.py#L457",
+      "files": [
+        "cases/mark_xfail_notrun/test_case.py"
+      ],
+      "reuse": "unchanged embedded Python source; outer pytester harness replaced",
+      "expectation": {
+        "xfailed": 1,
+        "note": "full upstream diagnostic-format spy omitted; add new fixture-setup guard integration coverage"
+      }
+    },
+    {
+      "case": "monkeypatch_core",
+      "source_path": "testing/test_monkeypatch.py",
+      "source_test": "test_setattr",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_monkeypatch.py#L27",
+      "files": [
+        "cases/monkeypatch_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper for approx only; use public MonkeyPatch/approx imports"
+    },
+    {
+      "case": "monkeypatch_core",
+      "source_path": "testing/test_monkeypatch.py",
+      "source_test": "test_setitem",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_monkeypatch.py#L139",
+      "files": [
+        "cases/monkeypatch_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper for approx only; use public MonkeyPatch/approx imports"
+    },
+    {
+      "case": "monkeypatch_core",
+      "source_path": "testing/test_monkeypatch.py",
+      "source_test": "test_setitem_deleted_meanwhile",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_monkeypatch.py#L157",
+      "files": [
+        "cases/monkeypatch_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper for approx only; use public MonkeyPatch/approx imports"
+    },
+    {
+      "case": "monkeypatch_core",
+      "source_path": "testing/test_monkeypatch.py",
+      "source_test": "test_delitem",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_monkeypatch.py#L182",
+      "files": [
+        "cases/monkeypatch_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper for approx only; use public MonkeyPatch/approx imports"
+    },
+    {
+      "case": "monkeypatch_core",
+      "source_path": "testing/test_monkeypatch.py",
+      "source_test": "test_context_classmethod",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_monkeypatch.py#L631",
+      "files": [
+        "cases/monkeypatch_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper for approx only; use public MonkeyPatch/approx imports"
+    },
+    {
+      "case": "monkeypatch_core",
+      "source_path": "testing/test_monkeypatch.py",
+      "source_test": "test_undo_inherited_attribute_on_instance",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_monkeypatch.py#L473",
+      "files": [
+        "cases/monkeypatch_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper for approx only; use public MonkeyPatch/approx imports"
+    },
+    {
+      "case": "approx_core",
+      "source_path": "testing/python/approx.py",
+      "source_test": "TestApprox.test_reasonable_defaults",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/approx.py#L509",
+      "files": [
+        "cases/approx_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper; import public pytest.approx and required operator.eq/ne helpers"
+    },
+    {
+      "case": "approx_core",
+      "source_path": "testing/python/approx.py",
+      "source_test": "TestApprox.test_default_tolerances",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/approx.py#L514",
+      "files": [
+        "cases/approx_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper; import public pytest.approx and required operator.eq/ne helpers"
+    },
+    {
+      "case": "approx_core",
+      "source_path": "testing/python/approx.py",
+      "source_test": "TestApprox.test_relative_tolerance",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/approx.py#L549",
+      "files": [
+        "cases/approx_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper; import public pytest.approx and required operator.eq/ne helpers"
+    },
+    {
+      "case": "approx_core",
+      "source_path": "testing/python/approx.py",
+      "source_test": "TestApprox.test_absolute_tolerance",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/approx.py#L555",
+      "files": [
+        "cases/approx_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper; import public pytest.approx and required operator.eq/ne helpers"
+    },
+    {
+      "case": "approx_core",
+      "source_path": "testing/python/approx.py",
+      "source_test": "TestApprox.test_list",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/approx.py#L677",
+      "files": [
+        "cases/approx_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper; import public pytest.approx and required operator.eq/ne helpers"
+    },
+    {
+      "case": "approx_core",
+      "source_path": "testing/python/approx.py",
+      "source_test": "TestApprox.test_list_wrong_len",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/approx.py#L693",
+      "files": [
+        "cases/approx_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper; import public pytest.approx and required operator.eq/ne helpers"
+    },
+    {
+      "case": "approx_core",
+      "source_path": "testing/python/approx.py",
+      "source_test": "TestApprox.test_dict",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/approx.py#L714",
+      "files": [
+        "cases/approx_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper; import public pytest.approx and required operator.eq/ne helpers"
+    },
+    {
+      "case": "approx_core",
+      "source_path": "testing/python/approx.py",
+      "source_test": "TestApprox.test_dict_wrong_len",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/approx.py#L734",
+      "files": [
+        "cases/approx_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper; import public pytest.approx and required operator.eq/ne helpers"
+    },
+    {
+      "case": "approx_core",
+      "source_path": "testing/python/approx.py",
+      "source_test": "TestApprox.test_negative_tolerance_message",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/approx.py#L477",
+      "files": [
+        "cases/approx_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper; import public pytest.approx and required operator.eq/ne helpers"
+    },
+    {
+      "case": "approx_core",
+      "source_path": "testing/python/approx.py",
+      "source_test": "TestApprox.test_bool",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/approx.py#L390",
+      "files": [
+        "cases/approx_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper; import public pytest.approx and required operator.eq/ne helpers"
+    },
+    {
+      "case": "approx_core",
+      "source_path": "testing/python/approx.py",
+      "source_test": "TestApprox.test_expecting_inf",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/approx.py#L576",
+      "files": [
+        "cases/approx_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper; use public approx and operator/math helper imports"
+    },
+    {
+      "case": "approx_core",
+      "source_path": "testing/python/approx.py",
+      "source_test": "TestApprox.test_expecting_nan",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/approx.py#L587",
+      "files": [
+        "cases/approx_core/test_case.py"
+      ],
+      "reuse": "full original statements/assertions; remove unused self/class wrapper; use public approx and operator/math helper imports"
+    }
+  ],
+  "exclusions": [
+    {
+      "source_path": "testing/test_monkeypatch.py",
+      "source_test": "TestSetattrWithImportPath.test_delattr",
+      "url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_monkeypatch.py#L110",
+      "reason": "An ambiguous name-only extractor selected this class method instead of the module-level test_delattr. Its retained self parameter, dotted os.path.abspath target and os dependency violate the chosen browser/object-only subset. Removed from recommended candidate; no import or signature workaround added."
+    }
+  ]
+}
