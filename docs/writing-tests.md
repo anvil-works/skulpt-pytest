@@ -45,8 +45,30 @@ Use `pytest.mark.xfail(reason='...', strict=True)` for a known failing behaviour
 when it unexpectedly passes, strict mode fails the run so the marker can be removed.
 `xfail(run=False)` avoids both fixtures and the test body.
 
+Use `capsys.readouterr()` to assert Python diagnostics; each read clears the
+buffers. `capsys.disabled()` temporarily sends output to the normal host writer.
+Capture also works in dependent fixture setup/cleanup and across suspended calls.
+
+```python
+def test_diagnostic(capsys):
+    print('invalid amount')
+    assert capsys.readouterr().out == 'invalid amount\n'
+```
+
+For an optional module, use `optional = pytest.importorskip('optional_module')`
+at module level. It skips a missing module or missing dependency; a plain
+`ImportError` from broken initialization remains an error unless explicitly
+allowed with `exc_type=ImportError`. `minversion` is unsupported. For a capability
+check that should skip the entire file, call
+`pytest.skip('unavailable capability', allow_module_level=True)`. Definitions
+before that call are skipped too. Prefer `skipif` for skipping individual tests.
+
+`pytest.raises(ValueError, match='positive', check=predicate)` can additionally
+check exception fields. The predicate receives the exception after type/message
+matching and must return a truthy value. Keep the explicit exception type.
+
 Skulpt's suspended host calls resume normally inside tests, fixtures and cleanup;
 Python async test functions are not supported by this runtime. Test output uses
-the host's output stream. There is no `tmp_path`, environment patching, `capsys`,
-plugin loading or filesystem discovery. See the [API boundary](../README.md#supported-api)
+the host's output stream, except while `capsys` captures it. There is no `tmp_path`,
+environment patching, plugin loading or filesystem discovery. See the [API boundary](../README.md#supported-api)
 before introducing another pytest feature.

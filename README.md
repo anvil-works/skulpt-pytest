@@ -31,6 +31,13 @@ remains owned by the host; use a fresh browser/runtime for a fresh app.
 `targets` selects virtual directories, files or `file.py::test_function` IDs.
 Discovery imports all test modules before selection so it can report the full
 inventory; a collection error in any of them prevents execution.
+Module-level skips are reported in the completion event's `collection_skips`
+array (`file_path`, `reason`), without fabricated test cases. `counts.skipped`
+includes those records as well as skipped tests. Skipped conftests block their
+subtrees and are reported once per conftest; this includes root conftests in the
+browser manifest. Selection does not suppress collection skips elsewhere in the
+manifest. A run with no selected test cases still exits 5, including when every
+module skips during collection.
 Events are `discovered_tests`, `test_updates` and `test_run_update`, with separate
 setup/call/teardown errors. Output streams through `Sk.output`. Exit codes: 0
 (passed), 1 (test/setup/teardown failure), 2 (collection error), 4 (unknown target)
@@ -50,12 +57,26 @@ targets, event callback and active state for the native bridge.
   during teardown fails explicitly.
 - Function-scoped `monkeypatch` and `pytest.MonkeyPatch`: reversible object/class/
   module attributes, dotted import targets, dictionary entries, `context` and `undo`.
+- Function-scoped `capsys`: Python `sys.stdout`/`sys.stderr` text capture,
+  draining `readouterr()` results with `.out`/`.err` or tuple unpacking, and nested
+  `disabled()` contexts. Cleanup restores the exact original streams and forwards
+  unread output to the host. Already-read output is consumed. This does not capture
+  JavaScript console output, file descriptors or stdin, or add automatic failure
+  output sections.
 - `pytest.approx`: numeric scalars and flat lists/tuples/dicts, with relative and
   absolute tolerances and `nan_ok`. Nonnumeric entries compare exactly.
 - `raises`, `fail`, `skip`, `xfail`; `skip`, boolean `skipif`, `xfail` and
   `usefixtures` marks on functions/parameter rows. Module `pytestmark` is supported.
   Skip and `xfail(run=False)` avoid setup. Strict XPASS fails; non-strict XPASS
   reports `xpassed` without failing. Conditional marks require a reason.
+- `raises(ExceptionType, match=..., check=predicate)` checks type, regex and then
+  predicate truthiness. Predicate exceptions propagate; callable-form kwargs
+  continue to be passed to the called function. The exception type is required.
+- `skip(..., allow_module_level=True)` and `importorskip(module, reason=...)`.
+  `importorskip` returns the requested dotted module and skips `ModuleNotFoundError`
+  by default (including a missing dependency inside that module). Plain
+  `ImportError` propagates unless `exc_type=ImportError` is supplied; other import
+  failures propagate. `minversion` comparisons are explicitly unsupported.
 
 Results distinguish `passed`, `failed`, `error`, `skipped`, `xfailed` and `xpassed`.
 Fixture cleanup is LIFO and continues after a cleanup error. Module fixtures close
@@ -65,7 +86,7 @@ including when the host callback aborts a run.
 Class/package/dynamic fixture scopes, parametrized module/session fixtures,
 parametrisation `scope=`, keyword-only/positional-only fixture arguments, test
 classes, generator tests, string mark conditions and CLI flags are unsupported.
-There are no filesystem/environment fixtures, plugin hooks, stdout capture,
+There are no filesystem/environment fixtures, plugin hooks, global output capture,
 NumPy/Decimal/nested `approx`, hidden parameter IDs or assertion-value rewriting.
 The chosen Skulpt formatter does not render exception groups or exception notes.
 

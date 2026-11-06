@@ -1,5 +1,6 @@
 """Scoped fixture values and cleanup for one run in the host's Python environment."""
 from . import Failed, MonkeyPatch, _Fixture
+from ._capture import _capsys
 
 _missing = object()
 _scope_order = {'function': 0, 'module': 1, 'session': 2}
@@ -113,6 +114,7 @@ def _monkeypatch(request):
 
 
 _builtin_monkeypatch = _Fixture(_monkeypatch, 'monkeypatch', False)
+_builtin_capsys = _Fixture(_capsys, 'capsys', False)
 
 
 class FixtureSession:
@@ -232,4 +234,4 @@ class FixtureContext:
 
 
 def _definitions():
-    return {'monkeypatch': [_builtin_monkeypatch]}
+    return {'monkeypatch': [_builtin_monkeypatch], 'capsys': [_builtin_capsys]}

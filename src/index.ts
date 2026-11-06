@@ -5,6 +5,7 @@ import marks from "./python/pytest/_marks.py?raw";
 import fixtures from "./python/pytest/_fixtures.py?raw";
 import monkeypatch from "./python/pytest/_monkeypatch.py?raw";
 import approx from "./python/pytest/_approx.py?raw";
+import capture from "./python/pytest/_capture.py?raw";
 
 export type Outcome = "passed" | "failed" | "error" | "skipped" | "xfailed" | "xpassed";
 export interface TestError { phase: "setup" | "call" | "teardown"; type: string; message: string; traceback: string }
@@ -22,6 +23,7 @@ export type TestEvent =
   | { type: "test_run_update"; status: "collecting_tests" | "running_tests" | "complete";
       counts?: Record<Outcome, number>; exit_code?: string;
       error?: { type: string; message: string };
+      collection_skips?: { file_path: string; reason: string }[];
       collection_errors?: (Omit<TestError, "phase"> & { file_path: string })[] };
 
 export interface RunOptions {
@@ -53,6 +55,7 @@ export function installPytest(Sk: SkulptRuntime): void {
     "src/lib/pytest/_fixtures.py": fixtures,
     "src/lib/pytest/_monkeypatch.py": monkeypatch,
     "src/lib/pytest/_approx.py": approx,
+    "src/lib/pytest/_capture.py": capture,
     "src/lib/_skulpt_pytest.js": native,
   });
 }
