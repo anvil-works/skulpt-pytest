@@ -20,10 +20,14 @@ jobs:
           repository: anvil-works/skulpt
           ref: 2f6f0b3b93c8d7e0ec70ed8fe352c5b53dd498c7
           path: .scratch/skulpt
-      - run: npm ci && npm run build
+      - run: npm ci && npm run devbuild
         working-directory: .scratch/skulpt
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm check
       - run: pnpm build
+      - run: SKULPT_CORE=skulpt.js pnpm test:package
+      - run: npm run build
+        working-directory: .scratch/skulpt
       - run: pnpm build:demo
+      - run: pnpm test:package
       - run: pnpm test

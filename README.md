@@ -29,6 +29,8 @@ their temporary module/source-cache entries afterwards. Imported app state
 remains owned by the host; use a fresh browser/runtime for a fresh app.
 
 `targets` selects virtual directories, files or `file.py::test_function` IDs.
+Discovery imports all test modules before selection so it can report the full
+inventory; a collection error in any of them prevents execution.
 Events are `discovered_tests`, `test_updates` and `test_run_update`, with separate
 setup/call/teardown errors. Output streams through `Sk.output`. Exit codes: 0
 (passed), 1 (test/setup/teardown failure), 2 (collection error), 4 (unknown target)
@@ -46,8 +48,8 @@ targets, event callback and active state for the native bridge.
 - `pytest.fail`, `pytest.skip`, and programmatic `pytest.main` over the manifest.
 
 Other fixture scopes, fixture parametrisation, keyword-only/positional-only
-fixture arguments, test classes and CLI flags fail explicitly. Marks,
-`parametrize`, `approx`, builtin fixtures such as `request`, plugin hooks, stdout
+fixture arguments, test classes, generator tests and CLI flags fail explicitly.
+Marks, `parametrize`, `approx`, builtin fixtures such as `request`, plugin hooks, stdout
 capture and assertion-value rewriting are not implemented. The chosen Skulpt
 formatter does not render exception groups or exception notes.
 
@@ -65,6 +67,7 @@ export SKULPT_DIST=/absolute/path/to/skulpt/dist
 pnpm test
 pnpm check
 pnpm build
+pnpm test:package
 pnpm dev
 ```
 

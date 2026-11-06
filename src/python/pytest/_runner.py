@@ -31,24 +31,28 @@ class _Fixtures:
         return {name: self.resolve(name) for name in _arguments(function)}
 
     def resolve(self, name):
-        if name in self.values:
-            return self.values[name]
         if name not in self.definitions:
             raise FixtureLookupError("fixture '%s' not found" % name)
-        if name in self.resolving:
+        definitions = self.definitions[name]
+        # Requesting the same name from an override resolves the next outer fixture.
+        depth = self.resolving.count(name)
+        if depth >= len(definitions):
             raise FixtureLookupError('recursive fixture dependency: ' + ' -> '.join(self.resolving + [name]))
+        definition = definitions[-1 - depth]
+        if definition in self.values:
+            return self.values[definition]
         self.resolving.append(name)
         try:
-            function = self.definitions[name].function
+            function = definition.function
             value = function(**self.arguments(function))
-            if isinstance(value, types.GeneratorType):
+            if function.__code__.co_flags & 0x20:
                 generator = value
                 try:
                     value = next(generator)
                 except StopIteration:
                     raise ValueError("fixture '%s' did not yield a value" % name)
                 self.finalizers.append((name, generator))
-            self.values[name] = value
+            self.values[definition] = value
             return value
         finally:
             self.resolving.pop()
@@ -75,8 +79,9 @@ def _error(error, phase):
     tb = error.__traceback__
     while tb is not None and tb.tb_frame.f_code.co_filename.startswith('src/lib/pytest/'):
         tb = tb.tb_next
-    return {'phase': phase, 'type': type(error).__name__, 'message': str(error),
-            'traceback': ''.join(traceback.format_exception(type(error), error, tb))}
+    summary = traceback.TracebackException(type(error), error, tb)
+    return {'phase': phase, 'type': type(error).__name__, 'message': str(summary),
+            'traceback': ''.join(summary.format())}
 
 
 def _run_test(function, definitions):
@@ -87,12 +92,15 @@ def _run_test(function, definitions):
     outcome = 'passed'
     phase = 'setup'
     try:
-        for name, definition in definitions.items():
-            if definition.autouse:
+        for name, layered in definitions.items():
+            if any(definition.autouse for definition in layered):
                 fixtures.resolve(name)
         arguments = fixtures.arguments(function)
         phase = 'call'
-        function(**arguments)
+        returned = function(**arguments)
+        if isinstance(returned, types.GeneratorType):
+            returned.close()
+            raise NotImplementedError('generator tests are not supported')
     except Skipped as error:
         outcome, reason = 'skipped', str(error)
     except BaseException as error:
@@ -111,8 +119,10 @@ def _run_test(function, definitions):
     return result
 
 
-def _fixture_definitions(module):
-    return {value.name: value for value in module.__dict__.values() if isinstance(value, _Fixture)}
+def _add_fixtures(definitions, module):
+    for value in module.__dict__.values():
+        if isinstance(value, _Fixture):
+            definitions.setdefault(value.name, []).append(value)
 
 
 def _selected(test_id, selection):
@@ -126,16 +136,22 @@ def run(args):
     if any(target.startswith('-') for target in selection):
         raise NotImplementedError('pytest command-line flags are not yet supported')
     modules = {}
+    module_names = []
     original_lines = {path: linecache.cache.get(path) for path in sources}
     counts = {'passed': 0, 'failed': 0, 'error': 0, 'skipped': 0}
     emit({'type': 'test_run_update', 'status': 'collecting_tests'})
 
     def load(path):
         if path not in modules:
-            module = types.ModuleType('_skulpt_pytest_%d' % len(modules))
+            index = len(modules)
+            while '_skulpt_pytest_%d' % index in sys.modules:
+                index += 1
+            name = '_skulpt_pytest_%d' % index
+            module = types.ModuleType(name)
             module.__file__, module.__package__ = path, ''
             modules[path] = module
-            sys.modules[module.__name__] = module
+            module_names.append(name)
+            sys.modules[name] = module
             source = sources[path]
             linecache.cache[path] = (len(source), None, source.splitlines(True), path)
             exec(compile(source, path, 'exec'), module.__dict__)
@@ -154,9 +170,9 @@ def run(args):
                 for i in range(len(parts) + 1):
                     conftest = '/'.join(parts[:i] + ['conftest.py'])
                     if conftest in sources:
-                        definitions.update(_fixture_definitions(load(conftest)))
+                        _add_fixtures(definitions, load(conftest))
                 module = load(path)
-                definitions.update(_fixture_definitions(module))
+                _add_fixtures(definitions, module)
                 for name, function in module.__dict__.items():
                     if name.startswith('Test') and isinstance(function, type):
                         raise NotImplementedError('test classes are not yet supported')
@@ -194,8 +210,8 @@ def run(args):
               'exit_code': {0: 'OK', 1: 'TESTS_FAILED', 5: 'NO_TESTS_COLLECTED'}[code]})
         return code
     finally:
-        for module in modules.values():
-            sys.modules.pop(module.__name__, None)
+        for name in module_names:
+            sys.modules.pop(name, None)
         for path, previous in original_lines.items():
             if previous is None:
                 linecache.cache.pop(path, None)

@@ -122,6 +122,13 @@
         ],
         "omitted_contract": "upstream also requires warning about test_a; decide warning support separately"
       }
+    },
+    {
+      "candidate": "override_conftest.py + override_tests.py",
+      "source_path": "testing/python/fixtures.py",
+      "source_test": "TestFillFixtures.test_override_fixture_reusing_super_fixture_parametrization",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/fixtures.py#L539",
+      "reuse": "scalar parent replaces parametrisation/request.param; child fixture and assertion remain unchanged"
     }
   ]
 }

@@ -15,6 +15,7 @@
     "build:demo": "rsbuild build",
     "test": "rstest run",
     "test:watch": "rstest",
+    "test:package": "node --allow-natives-syntax scripts/check-package.mjs",
     "check": "tsc --noEmit",
     "prepack": "pnpm build"
   },

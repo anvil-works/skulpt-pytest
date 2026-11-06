@@ -120,3 +120,63 @@ test("isolates repeated test modules and reports collection errors and an empty 
   expect(broken.exitCode).toBe(2);
   expect(broken.events.at(-1)).toMatchObject({ status: "complete", collection_errors: [{ type: "SyntaxError" }] });
 });
+
+test("returns generator data as data, supports callable raises, and rejects generator tests", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: { "test_generators.py": `import pytest
+@pytest.fixture
+def values():
+    return (value for value in (1, 2))
+def test_values(values):
+    assert list(values) == [1, 2]
+def test_callable_raises():
+    info = pytest.raises(ValueError, int, 'bad')
+    assert info.type is ValueError
+    assert info.match('invalid literal')
+def test_generator():
+    yield 1
+    assert False
+` } });
+  const results = finished(result.events);
+  expect(results.map(test => test.result.outcome)).toEqual(["passed", "passed", "failed"]);
+  expect(results[2].result.errors![0]).toMatchObject({ type: "NotImplementedError", message: "generator tests are not supported" });
+});
+
+test("preserves host modules and cleans exact temporary keys even if a test changes its name", async () => {
+  const { Sk } = runtime();
+  await Sk.misceval.asyncToPromise(() => Sk.importModule("sys", false, true));
+  const key = new Sk.builtin.str("_skulpt_pytest_0");
+  const existing = new Sk.builtin.module();
+  Sk.sysmodules.mp$ass_subscript(key, existing);
+  const result = await runTests(Sk, { files: { "test_name.py": "__name__ = 'changed_by_test'\ndef test_ok(): assert True\n" } });
+  expect(result.exitCode).toBe(0);
+  expect(Sk.sysmodules.mp$lookup(key)).toBe(existing);
+  expect(Sk.sysmodules.mp$lookup(new Sk.builtin.str("_skulpt_pytest_1"))).toBeUndefined();
+  expect(Sk.sysmodules.mp$lookup(new Sk.builtin.str("changed_by_test"))).toBeUndefined();
+});
+
+test("continues reporting after an exception with a broken string representation", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: { "test_bad_str.py": `class Broken(Exception):
+    def __str__(self):
+        raise ValueError('broken string')
+def test_bad():
+    raise Broken()
+def test_later():
+    assert True
+` } });
+  expect(result.exitCode).toBe(1);
+  expect(finished(result.events).map(test => test.result.outcome)).toEqual(["failed", "passed"]);
+  expect(finished(result.events)[0].result.errors![0].message).toContain("unprintable Broken object");
+  expect(result.events.at(-1)).toMatchObject({ status: "complete" });
+});
+
+test("extends an ancestor fixture with the same fixture name", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: {
+    "conftest.py": upstream("override_conftest"),
+    "sub/test_override.py": upstream("override_tests"),
+  } });
+  expect(result.exitCode).toBe(0);
+  expect(finished(result.events)).toHaveLength(1);
+});

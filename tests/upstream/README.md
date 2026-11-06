@@ -17,3 +17,8 @@ The complete MIT notice is in [licenses/pytest.txt](../../licenses/pytest.txt).
 Rstest's event assertions are new integration coverage; pytester's filesystem
 and plugin harness is not reused. Browser, suspension, caching and repeated-run
 checks are also new tests. This is a selected compatibility set, not full pytest.
+
+`override_conftest.py` and `override_tests.py` adapt the parent-extending fixture
+case at `fixtures.py:539`: the parent uses a scalar instead of parametrisation
+and `request.param`; the child fixture/test bodies are unchanged. This checks
+name-shadowing dependency resolution without claiming parametrisation support.
