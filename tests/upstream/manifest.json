@@ -1,0 +1,127 @@
+{
+  "pytest_commit": "ae1d0ff57b8bd4252da9ade7353523ac0ac73281",
+  "licence": "../../licenses/pytest.txt",
+  "entries": [
+    {
+      "candidate": "raises.py",
+      "source_path": "testing/python/raises.py",
+      "source_test": "TestRaises.test_raises",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/raises.py#L23",
+      "reuse": "complete test body; remove unused self/class wrapper only"
+    },
+    {
+      "candidate": "raises.py",
+      "source_path": "testing/python/raises.py",
+      "source_test": "TestRaises.test_tuple",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/raises.py#L219",
+      "reuse": "complete test body; remove unused self/class wrapper only"
+    },
+    {
+      "candidate": "raises.py",
+      "source_path": "testing/python/raises.py",
+      "source_test": "TestRaises.test_noclass",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/raises.py#L209",
+      "reuse": "complete test body; remove unused self/class wrapper only"
+    },
+    {
+      "candidate": "raises.py",
+      "source_path": "testing/python/raises.py",
+      "source_test": "TestRaises.test_invalid_arguments_to_raises",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/raises.py#L214",
+      "reuse": "complete test body; remove unused self/class wrapper only"
+    },
+    {
+      "candidate": "raises.py",
+      "source_path": "testing/python/raises.py",
+      "source_test": "TestRaises.test_no_raise_message",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/raises.py#L223",
+      "reuse": "complete test body; remove unused self/class wrapper only"
+    },
+    {
+      "candidate": "raises.py",
+      "source_path": "testing/python/raises.py",
+      "source_test": "TestRaises.test_raises_match_wrong_type",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/raises.py#L341",
+      "reuse": "complete test body; remove unused self/class wrapper only"
+    },
+    {
+      "candidate": "raises.py",
+      "source_path": "testing/python/raises.py",
+      "source_test": "TestRaises.test_raises_as_contextmanager / test_noraise",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/raises.py#L94",
+      "reuse": "unchanged function from embedded pytester module; exclude private ExceptionInfo assertion test"
+    },
+    {
+      "candidate": "raises.py",
+      "source_path": "testing/python/raises.py",
+      "source_test": "TestRaises.test_raises_as_contextmanager / test_raise_wrong_exception_passes_by",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/raises.py#L94",
+      "reuse": "unchanged function from embedded pytester module; exclude private ExceptionInfo assertion test"
+    },
+    {
+      "candidate": "yield_lifecycle.py",
+      "source_path": "testing/python/fixtures.py",
+      "source_test": "TestContextManagerFixtureFuncs.test_simple",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/fixtures.py#L4202",
+      "reuse": "unchanged embedded Python module; replace outer pytester/terminal harness with Rstest execution and report assertions",
+      "upstream_expectation": {
+        "output_order": [
+          "setup",
+          "test1 1",
+          "teardown",
+          "setup",
+          "test2 1",
+          "teardown"
+        ],
+        "outcomes": {
+          "passed": 1,
+          "failed": 1
+        },
+        "outcomes_note": "outcomes inferred from embedded assertions; upstream explicitly asserts output order"
+      }
+    },
+    {
+      "candidate": "fixture_collection.py",
+      "source_path": "testing/python/fixtures.py",
+      "source_test": "TestFixtureMarker.test_fixture_marked_function_not_collected_as_test",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/fixtures.py#L3647",
+      "reuse": "unchanged embedded Python module; replace outer pytester/terminal harness with Rstest execution and report assertions",
+      "upstream_expectation": {
+        "outcomes": {
+          "passed": 1
+        },
+        "test_names": [
+          "test_something"
+        ]
+      }
+    },
+    {
+      "candidate": "missing_dependency.py",
+      "source_path": "testing/python/fixtures.py",
+      "source_test": "TestFixtureUsages.test_factory_uses_unknown_funcarg_as_dependency_error",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/fixtures.py#L1620",
+      "reuse": "unchanged embedded Python module; replace outer pytester/terminal harness with Rstest execution and report assertions",
+      "upstream_expectation": {
+        "error_contains": "fixture 'missing' not found",
+        "outcomes_note": "setup-error classification is a new harness assertion; upstream asserts diagnostic text"
+      }
+    },
+    {
+      "candidate": "collection_callable.py",
+      "source_path": "testing/python/collect.py",
+      "source_test": "test_dont_collect_non_function_callable",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/collect.py#L1419",
+      "reuse": "unchanged embedded Python module; replace outer pytester/terminal harness with Rstest execution and report assertions",
+      "upstream_expectation": {
+        "outcomes": {
+          "passed": 1
+        },
+        "collected": 1,
+        "test_names": [
+          "test_real"
+        ],
+        "omitted_contract": "upstream also requires warning about test_a; decide warning support separately"
+      }
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+name: test
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --openssl-legacy-provider
+      SKULPT_DIST: ${{ github.workspace }}/.scratch/skulpt/dist
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/checkout@v4
+        with:
+          repository: anvil-works/skulpt
+          ref: 2f6f0b3b93c8d7e0ec70ed8fe352c5b53dd498c7
+          path: .scratch/skulpt
+      - run: npm ci && npm run build
+        working-directory: .scratch/skulpt
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm check
+      - run: pnpm build
+      - run: pnpm build:demo
+      - run: pnpm test

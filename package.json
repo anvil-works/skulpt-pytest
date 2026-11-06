@@ -1,0 +1,29 @@
+{
+  "name": "@anvil-works/skulpt-pytest",
+  "version": "0.0.1-dev.0",
+  "description": "A pytest-compatible test runner for browser Python in Skulpt",
+  "type": "module",
+  "license": "MIT",
+  "packageManager": "pnpm@10.10.0",
+  "engines": { "node": ">=22.12" },
+  "repository": { "type": "git", "url": "https://github.com/anvil-works/skulpt-pytest.git" },
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "files": ["dist", "licenses"],
+  "scripts": {
+    "build": "rslib build",
+    "dev": "rsbuild dev",
+    "build:demo": "rsbuild build",
+    "test": "rstest run",
+    "test:watch": "rstest",
+    "check": "tsc --noEmit",
+    "prepack": "pnpm build"
+  },
+  "devDependencies": {
+    "@rsbuild/core": "2.2.14",
+    "@rslib/core": "1.0.0",
+    "@rstest/core": "0.11.12",
+    "@types/node": "22.15.3",
+    "playwright": "1.65.0",
+    "typescript": "5.9.3"
+  }
+}
