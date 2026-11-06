@@ -1,3 +1,4 @@
+import sys
 import pytest
 
 
@@ -20,3 +21,14 @@ def test_agent_style(index, value, expected, settings, monkeypatch, request):
 @pytest.mark.xfail(strict=True, reason='example known failure')
 def test_known_failure():
     assert False
+
+
+def test_capture_and_exception_check(capsys):
+    print('captured before suspension')
+    pause()
+    sys.stderr.write('captured stderr\n')
+    with capsys.disabled():
+        print('uncaptured browser output')
+    assert capsys.readouterr() == ('captured before suspension\n', 'captured stderr\n')
+    with pytest.raises(ValueError, match='invalid amount', check=lambda error: error.args == ('invalid amount',)):
+        raise ValueError('invalid amount')

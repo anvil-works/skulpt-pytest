@@ -266,13 +266,15 @@ def run(args):
     selection = targets() if args is None else args
     if any(target.startswith('-') for target in selection):
         raise NotImplementedError('pytest command-line flags are not yet supported')
-    modules, module_names = {}, []
+    modules, module_names, load_errors = {}, [], {}
     original_lines = {path: linecache.cache.get(path) for path in sources}
     counts = dict.fromkeys(('passed', 'failed', 'error', 'skipped', 'xfailed', 'xpassed'), 0)
     session = FixtureSession()
     emit({'type': 'test_run_update', 'status': 'collecting_tests'})
 
     def load(path):
+        if path in load_errors:
+            raise load_errors[path]
         if path not in modules:
             index = len(modules)
             while '_skulpt_pytest_%d' % index in sys.modules:
@@ -285,22 +287,30 @@ def run(args):
             sys.modules[name] = module
             source = sources[path]
             linecache.cache[path] = (len(source), None, source.splitlines(True), path)
-            exec(compile(source, path, 'exec'), module.__dict__)
+            try:
+                exec(compile(source, path, 'exec'), module.__dict__)
+            except BaseException as error:
+                # A later sibling must not use a half-loaded conftest/module.
+                load_errors[path] = error
+                raise
         return modules[path]
 
     try:
-        tests, collection_errors = [], []
+        tests, collection_errors, collection_skips, skipped_files = [], [], {}, set()
         for path in sorted(sources):
             basename = path.rsplit('/', 1)[-1]
             if not path.endswith('.py') or not (basename.startswith('test_') or basename.endswith('_test.py')):
                 continue
             try:
+                source_path = path
                 definitions = _definitions()
                 parts = path.split('/')[:-1]
                 for index in range(len(parts) + 1):
                     conftest = '/'.join(parts[:index] + ['conftest.py'])
                     if conftest in sources:
+                        source_path = conftest
                         _add_fixtures(definitions, load(conftest))
+                source_path = path
                 module = load(path)
                 _add_fixtures(definitions, module)
                 module_marks = _marks(getattr(module, 'pytestmark', ()))
@@ -310,6 +320,13 @@ def run(args):
                     if name.startswith('test_') and isinstance(function, types.FunctionType):
                         tests.extend(_cases(path, name, function, definitions, module_marks))
             except BaseException as error:
+                if isinstance(error, Skipped):
+                    if error.allow_module_level or source_path.rsplit('/', 1)[-1] == 'conftest.py':
+                        collection_skips[source_path] = {'file_path': source_path, 'reason': str(error)}
+                        skipped_files.add(path)
+                        continue
+                    error = Failed('Using pytest.skip outside a test requires allow_module_level=True. '
+                                   + str(error)).with_traceback(error.__traceback__)
                 item = _error(error, 'setup')
                 item.pop('phase')
                 item['file_path'] = path
@@ -317,17 +334,20 @@ def run(args):
         emit({'type': 'discovered_tests', 'tests': [
             {'test_id': case.test_id, 'file_path': case.path, 'line': case.function.__code__.co_firstlineno, 'name': case.name}
             for case in tests]})
+        counts['skipped'] += len(collection_skips)
+        complete = {'type': 'test_run_update', 'status': 'complete', 'counts': counts}
+        if collection_skips:
+            complete['collection_skips'] = list(collection_skips.values())
         if collection_errors:
-            emit({'type': 'test_run_update', 'status': 'complete', 'counts': counts,
-                  'exit_code': 'INTERRUPTED', 'collection_errors': collection_errors})
+            emit(dict(complete, exit_code='INTERRUPTED', collection_errors=collection_errors))
             return 2
         for target in selection:
             known_path = target == '.' or target in sources or any(
                 path.startswith(target.rstrip('/') + '/') for path in sources)
+            known_path = known_path or any(target.startswith(path + '::') for path in skipped_files)
             if not any(_selected(case, [target]) for case in tests) and not known_path:
-                emit({'type': 'test_run_update', 'status': 'complete', 'counts': counts,
-                      'exit_code': 'USAGE_ERROR',
-                      'error': {'type': 'UsageError', 'message': 'test target not found: ' + target}})
+                emit(dict(complete, exit_code='USAGE_ERROR',
+                          error={'type': 'UsageError', 'message': 'test target not found: ' + target}))
                 return 4
         selected = [case for case in tests if _selected(case, selection)]
         emit({'type': 'test_run_update', 'status': 'running_tests'})
@@ -338,8 +358,7 @@ def run(args):
             counts[result['outcome']] += 1
             emit({'type': 'test_updates', 'tests': [{'test_id': case.test_id, 'result': result}]})
         code = 5 if not selected else (1 if counts['failed'] or counts['error'] else 0)
-        emit({'type': 'test_run_update', 'status': 'complete', 'counts': counts,
-              'exit_code': {0: 'OK', 1: 'TESTS_FAILED', 5: 'NO_TESTS_COLLECTED'}[code]})
+        emit(dict(complete, exit_code={0: 'OK', 1: 'TESTS_FAILED', 5: 'NO_TESTS_COLLECTED'}[code]))
         return code
     finally:
         session.close()

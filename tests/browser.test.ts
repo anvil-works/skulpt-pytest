@@ -16,11 +16,12 @@ test("runs the built-in pytest module and upstream cases in a real browser", asy
     const result = await page.evaluate(() => window.pytestDemo!);
     expect(errors).toEqual([]);
     expect(result.exitCode).toBe(1);
-    expect(result.events.at(-1)).toMatchObject({ status: "complete", counts: { passed: 11, failed: 1, error: 0, skipped: 0, xfailed: 1, xpassed: 0 } });
+    expect(result.events.at(-1)).toMatchObject({ status: "complete", counts: { passed: 12, failed: 1, error: 0, skipped: 1, xfailed: 1, xpassed: 0 },
+      collection_skips: [{ file_path: "tests/client_tests/test_optional.py", reason: "demonstrate optional module" }] });
     const failed = result.events.flatMap(event => event.type === "test_updates" ? event.tests : [])
       .find(test => test.result.outcome === "failed")!;
     expect(failed.result.errors![0].traceback).toContain("assert resource == 42");
-    expect(await page.locator("#output").textContent()).toBe("browser fixture cleaned up\nbrowser fixture cleaned up\n");
+    expect(await page.locator("#output").textContent()).toBe("uncaptured browser output\nbrowser fixture cleaned up\nbrowser fixture cleaned up\n");
   } finally {
     await browser.close();
     await server.server.close();
