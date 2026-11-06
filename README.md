@@ -40,18 +40,38 @@ targets, event callback and active state for the native bridge.
 ## Supported API
 
 - Function tests and plain assertions with source and native tracebacks.
-- `pytest.fixture`: ordinary named arguments, function scope, caching, `autouse`,
-  custom names, conftest overrides, returned values and yield teardown. Successful
-  setups unwind in reverse order after setup or test errors.
-- `pytest.raises`: context-manager/callable forms, exception tuples, regex `match`,
-  and exception info's `type`, `value`, `traceback` and `match`.
-- `pytest.fail`, `pytest.skip`, and programmatic `pytest.main` over the manifest.
+- `pytest.mark.parametrize`: names, rows, stacked combinations, IDs, `pytest.param`
+  and indirect arguments. Empty parameter sets skip; malformed rows are errors.
+- Function, module and session fixtures, conftest overrides, `autouse`, names,
+  return/yield values and function-scoped fixture `params`/`ids`. Dependencies are
+  cached per definition and scope; broader fixtures cannot use narrower ones.
+- `request.param`, `scope`, `fixturename`, `addfinalizer` and `getfixturevalue`.
+  Cached dependencies remain available during teardown; creating a new fixture
+  during teardown fails explicitly.
+- Function-scoped `monkeypatch` and `pytest.MonkeyPatch`: reversible object/class/
+  module attributes, dotted import targets, dictionary entries, `context` and `undo`.
+- `pytest.approx`: numeric scalars and flat lists/tuples/dicts, with relative and
+  absolute tolerances and `nan_ok`. Nonnumeric entries compare exactly.
+- `raises`, `fail`, `skip`, `xfail`; `skip`, boolean `skipif`, `xfail` and
+  `usefixtures` marks on functions/parameter rows. Module `pytestmark` is supported.
+  Skip and `xfail(run=False)` avoid setup. Strict XPASS fails; non-strict XPASS
+  reports `xpassed` without failing. Conditional marks require a reason.
 
-Other fixture scopes, fixture parametrisation, keyword-only/positional-only
-fixture arguments, test classes, generator tests and CLI flags fail explicitly.
-Marks, `parametrize`, `approx`, builtin fixtures such as `request`, plugin hooks, stdout
-capture and assertion-value rewriting are not implemented. The chosen Skulpt
-formatter does not render exception groups or exception notes.
+Results distinguish `passed`, `failed`, `error`, `skipped`, `xfailed` and `xpassed`.
+Fixture cleanup is LIFO and continues after a cleanup error. Module fixtures close
+at the last selected test of that module; session fixtures close before completion,
+including when the host callback aborts a run.
+
+Class/package/dynamic fixture scopes, parametrized module/session fixtures,
+parametrisation `scope=`, keyword-only/positional-only fixture arguments, test
+classes, generator tests, string mark conditions and CLI flags are unsupported.
+There are no filesystem/environment fixtures, plugin hooks, stdout capture,
+NumPy/Decimal/nested `approx`, hidden parameter IDs or assertion-value rewriting.
+The chosen Skulpt formatter does not render exception groups or exception notes.
+
+[Writing tests](docs/writing-tests.md) gives agents a copyable example and the
+supported boundary. Sources remain supplied by the host; no npm Skulpt publish
+is required for local development.
 
 ## Development
 

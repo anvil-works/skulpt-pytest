@@ -1,8 +1,12 @@
 import api from "./python/pytest/__init__.py?raw";
 import runner from "./python/pytest/_runner.py?raw";
 import native from "./native.js?raw";
+import marks from "./python/pytest/_marks.py?raw";
+import fixtures from "./python/pytest/_fixtures.py?raw";
+import monkeypatch from "./python/pytest/_monkeypatch.py?raw";
+import approx from "./python/pytest/_approx.py?raw";
 
-export type Outcome = "passed" | "failed" | "error" | "skipped";
+export type Outcome = "passed" | "failed" | "error" | "skipped" | "xfailed" | "xpassed";
 export interface TestError { phase: "setup" | "call" | "teardown"; type: string; message: string; traceback: string }
 export interface TestResult {
   status: "running" | "finished";
@@ -45,6 +49,10 @@ export function installPytest(Sk: SkulptRuntime): void {
   Object.assign(Sk.builtinFiles.files, {
     "src/lib/pytest/__init__.py": api,
     "src/lib/pytest/_runner.py": runner,
+    "src/lib/pytest/_marks.py": marks,
+    "src/lib/pytest/_fixtures.py": fixtures,
+    "src/lib/pytest/_monkeypatch.py": monkeypatch,
+    "src/lib/pytest/_approx.py": approx,
     "src/lib/_skulpt_pytest.js": native,
   });
 }
