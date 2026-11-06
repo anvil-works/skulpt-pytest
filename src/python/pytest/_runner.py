@@ -7,7 +7,7 @@ import types
 from _skulpt_pytest import files, targets, emit
 from . import Failed, Skipped, XFailed, _Fixture
 from ._fixtures import FixtureSession, _arguments, _definitions
-from ._capture import CaptureFixture
+from ._capture import capture_phase
 from ._marks import _marks, _parameter_rows
 
 
@@ -189,28 +189,30 @@ def _expectation(markers):
 def _run_test(case, session, close_module, close_session):
     started = time.time()
     context = session.context(case)
-    context.capture = CaptureFixture()
+    context.capture._start()
     raw_errors, called, expectation = [], False, None
     try:
-        expectation = _expectation(case.marks)
-        if expectation and expectation[0] == 'skip':
-            raise Skipped(expectation[1])
-        if expectation and not expectation[1].get('run', True):
-            raise XFailed('[NOTRUN] ' + expectation[1].get('reason', ''))
-        for name, layered in case.definitions.items():
-            if any(definition.autouse for definition in layered):
-                context.resolve(name)
-        for marker in case.marks:
-            if marker.name == 'usefixtures':
-                for name in marker.args:
+        with capture_phase(context):
+            expectation = _expectation(case.marks)
+            if expectation and expectation[0] == 'skip':
+                raise Skipped(expectation[1])
+            if expectation and not expectation[1].get('run', True):
+                raise XFailed('[NOTRUN] ' + expectation[1].get('reason', ''))
+            for name, layered in case.definitions.items():
+                if any(definition.autouse for definition in layered):
                     context.resolve(name)
-        arguments = context.arguments(case.function)
+            for marker in case.marks:
+                if marker.name == 'usefixtures':
+                    for name in marker.args:
+                        context.resolve(name)
+            arguments = context.arguments(case.function)
         context.phase = 'call'
-        returned = case.function(**arguments)
-        if isinstance(returned, types.GeneratorType):
-            returned.close()
-            raise NotImplementedError('generator tests are not supported')
-        called = True
+        with capture_phase(context):
+            returned = case.function(**arguments)
+            if isinstance(returned, types.GeneratorType):
+                returned.close()
+                raise NotImplementedError('generator tests are not supported')
+            called = True
     except BaseException as error:
         raw_errors.append((context.phase, error))
     finally:

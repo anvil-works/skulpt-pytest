@@ -49,8 +49,10 @@ Use `capsys.readouterr()` to assert Python diagnostics; each read clears the
 buffers. `capsys.disabled()` temporarily sends output to the normal host writer.
 Capture also works in dependent fixture setup/cleanup and across suspended calls.
 Every test automatically captures stdout/stderr for its result, even without
-requesting `capsys`. A `readouterr()` consumes fixture output, while unread fixture
-output joins the result. `disabled()` bypasses both capture layers.
+requesting `capsys`. A `readouterr()` clears fixture output, while phase boundaries
+copy unread output to the result and retain it for later fixture reads. Reading
+in teardown does not remove setup/call text already in the report.
+`disabled()` bypasses both capture layers.
 
 ```python
 def test_diagnostic(capsys):

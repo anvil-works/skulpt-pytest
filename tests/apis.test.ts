@@ -16,6 +16,8 @@ test("upstream capsys suites cover both streams, reset, fixture teardown and nes
   const result = await runTests(Sk, { files });
   expect(result.exitCode).toBe(0);
   expect(finished(result.events)).toHaveLength(6);
+  expect(finished(result.events).find(test => test.test_id === "test_teardown.py::test_a")!.result)
+    .toMatchObject({ stdout: "setup out\ncall out\n", stderr: "setup err\ncall err\n" });
   expect(finished(result.events).find(test => test.test_id.endsWith("::test_normal"))!.result.stdout).toBe("test_normal executed\n");
   expect(output.join("")).toBe("while capture is disabled\nwhile capture is disabled 1\nwhile capture is disabled 2\nwhile capture is disabled 1 after\n");
 });

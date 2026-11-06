@@ -1,6 +1,6 @@
 """Scoped fixture values and cleanup for one run in the host's Python environment."""
 from . import Failed, MonkeyPatch, _Fixture
-from ._capture import _capsys
+from ._capture import CaptureFixture, _capsys
 
 _missing = object()
 _scope_order = {'function': 0, 'module': 1, 'session': 2}
@@ -122,6 +122,8 @@ class FixtureSession:
         self.scope = _Scope()
         self.modules = {}
         self.current = None
+        # Keep the streams stable for handlers created by broader fixtures.
+        self.capture = CaptureFixture()
 
     def context(self, case):
         context = FixtureContext(self, case)
@@ -162,6 +164,7 @@ class FixtureContext:
     def __init__(self, session, case):
         self.session, self.case = session, case
         self.scope, self.resolving, self.phase = _Scope(), [], 'setup'
+        self.capture, self.capsys = session.capture, None
 
     def arguments(self, function):
         return {name: self.resolve(name) for name in _arguments(function)}

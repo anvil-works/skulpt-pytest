@@ -72,3 +72,26 @@ def test_last(shared): print('last test')
     { outcome: "passed", stdout: "last test\n", stderr: "module teardown\n" },
   ]);
 });
+
+test("handlers created by module fixtures keep writing to the current test capture", async () => {
+  const { Sk, output } = runtime();
+  const result = await runTests(Sk, { files: { "test_handler.py": `import logging
+import pytest
+@pytest.fixture(scope='module')
+def logger():
+    logger = logging.getLogger('capture-output')
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter('%(message)s'))
+    logger.addHandler(handler)
+    logger.setLevel(logging.WARNING)
+    logger.propagate = False
+    yield logger
+    logger.warning('teardown')
+    logger.removeHandler(handler)
+def test_first(logger): logger.warning('first')
+def test_second(logger): logger.warning('second')
+` } });
+  expect(result.exitCode).toBe(0);
+  expect(finished(result.events).map(test => test.result.stderr)).toEqual(["first\n", "second\nteardown\n"]);
+  expect(output).toEqual([]);
+});

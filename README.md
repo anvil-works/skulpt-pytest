@@ -62,7 +62,8 @@ targets, event callback and active state for the native bridge.
 - Function-scoped `capsys`: Python `sys.stdout`/`sys.stderr` text capture,
   draining `readouterr()` results with `.out`/`.err` or tuple unpacking, and nested
   `disabled()` contexts. Cleanup restores the exact original streams and forwards
-  unread output to the enclosing test report. Already-read output is consumed.
+  unread output to the enclosing test report at phase boundaries. `readouterr()`
+  clears the fixture's unread text; earlier phases already in the report remain.
   `disabled()` bypasses fixture and automatic test capture. Capture covers Python
   text streams; it does not capture JavaScript console output, file descriptors,
   stdin or Python logging records as a separate field.
