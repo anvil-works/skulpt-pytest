@@ -8,7 +8,7 @@
   "engines": { "node": ">=22.12" },
   "repository": { "type": "git", "url": "https://github.com/anvil-works/skulpt-pytest.git" },
   "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
-  "files": ["dist", "licenses"],
+  "files": ["dist", "licenses", "docs"],
   "scripts": {
     "build": "rslib build",
     "dev": "rsbuild dev",

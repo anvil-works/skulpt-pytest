@@ -66,10 +66,10 @@ def _parameter_rows(names, values, ids=None, force_tuple=True):
                 id = ids[index]
         if id is None:
             id = '-'.join(_value_id(name, value, index) for name, value in zip(names, row.values))
-        rows.append((row, str(id), index))
+        rows.append((row, str(id)))
     if not rows:
         rows.append((_ParameterSet((None,) * len(names), mark.skip(reason='empty parameter set'), None),
-                     '-'.join(name + '0' for name in names), 0))
+                     '-'.join(name + '0' for name in names)))
     return rows
 
 

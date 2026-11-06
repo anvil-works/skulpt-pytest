@@ -11,17 +11,25 @@ from ._marks import _marks, _parameter_rows
 
 
 class _Case:
-    def __init__(self, path, name, function, definitions, marks):
+    def __init__(self, path, name, function, definitions, marks, module_marks=()):
         self.path, self.base_name, self.function = path, name, function
-        self.definitions, self.marks = definitions, marks
+        self.definitions, self._marks, self.module_marks = definitions, marks, list(module_marks)
         self.direct, self.indirect, self.fixture_params, self.ids = {}, {}, {}, []
         self.id = None
 
     def copy(self):
-        case = _Case(self.path, self.base_name, self.function, self.definitions, list(self.marks))
+        case = _Case(self.path, self.base_name, self.function, self.definitions, list(self._marks), self.module_marks)
         case.direct, case.indirect = dict(self.direct), dict(self.indirect)
         case.fixture_params, case.ids = dict(self.fixture_params), list(self.ids)
         return case
+
+    @property
+    def marks(self):
+        # Function/row marks belong to the item and precede module defaults.
+        return self._marks + self.module_marks
+
+    def add_marks(self, marks):
+        self._marks.extend(marks)
 
     @property
     def name(self):
@@ -61,8 +69,9 @@ def _closure(case):
 
 
 def _cases(path, name, function, definitions, module_marks):
-    markers = module_marks + list(getattr(function, '_pytest_marks', ()))
-    initial = _Case(path, name, function, definitions, markers)
+    function_marks = list(getattr(function, '_pytest_marks', ()))
+    markers = function_marks + module_marks
+    initial = _Case(path, name, function, definitions, function_marks, module_marks)
     available = set(_arguments(function))
     for definition in _closure(initial):
         available.update(_arguments(definition.function))
@@ -93,12 +102,12 @@ def _cases(path, name, function, definitions, module_marks):
         for case in cases:
             if set(names) & (set(case.direct) | set(case.indirect)):
                 raise ValueError('duplicate parametrization of an argument')
-            for row, id, index in rows:
+            for row, id in rows:
                 new = case.copy()
                 for argument, value in zip(names, row.values):
-                    (new.indirect if argument in indirect else new.direct)[argument] = (index, value) if argument in indirect else value
+                    (new.indirect if argument in indirect else new.direct)[argument] = value
                 new.ids.append(id)
-                new.marks.extend(row.marks)
+                new.add_marks(row.marks)
                 expanded.append(new)
         cases = expanded
     expanded = []
@@ -110,11 +119,11 @@ def _cases(path, name, function, definitions, module_marks):
             rows = _parameter_rows([definition.name], definition.params, definition.ids)
             next_cases = []
             for current in fixture_cases:
-                for row, id, index in rows:
+                for row, id in rows:
                     new = current.copy()
-                    new.fixture_params[definition] = (index, row.values[0])
+                    new.fixture_params[definition] = row.values[0]
                     new.ids.append(id)
-                    new.marks.extend(row.marks)
+                    new.add_marks(row.marks)
                     next_cases.append(new)
             fixture_cases = next_cases
         expanded.extend(fixture_cases)
@@ -217,6 +226,9 @@ def _run_test(case, session, close_module, close_session):
             reason = options.get('reason', '')
         else:
             errors.append(_error(error, phase))
+    if called and options is not None and options.get('strict', False):
+        # A strict successful call is a failure even if teardown separately xfails.
+        errors.append(_error(Failed('[XPASS(strict)] ' + options.get('reason', '')), 'call'))
     if errors:
         outcome = 'error' if any(error['phase'] != 'call' for error in errors) else 'failed'
     elif expected_errors:
@@ -225,9 +237,7 @@ def _run_test(case, session, close_module, close_session):
         outcome = 'skipped'
     elif called and options is not None:
         reason = options.get('reason', '')
-        outcome = 'failed' if options.get('strict', False) else 'xpassed'
-        if outcome == 'failed':
-            errors.append(_error(Failed('[XPASS(strict)] ' + reason), 'call'))
+        outcome = 'xpassed'
     else:
         outcome = 'passed'
     result = {'status': 'finished', 'outcome': outcome, 'duration': time.time() - started}
@@ -244,9 +254,10 @@ def _add_fixtures(definitions, module):
             definitions.setdefault(value.name, []).append(value)
 
 
-def _selected(test_id, selection):
-    return not selection or any(target == '.' or test_id == target or test_id.startswith(target.rstrip('/') + '/')
-                               or test_id.startswith(target + '::') or test_id.startswith(target + '[') for target in selection)
+def _selected(case, selection):
+    return not selection or any(target == '.' or case.test_id == target or case.path == target
+                               or case.path.startswith(target.rstrip('/') + '/')
+                               or case.path + '::' + case.base_name == target for target in selection)
 
 
 def run(args):
@@ -312,12 +323,12 @@ def run(args):
         for target in selection:
             known_path = target == '.' or target in sources or any(
                 path.startswith(target.rstrip('/') + '/') for path in sources)
-            if not any(_selected(case.test_id, [target]) for case in tests) and not known_path:
+            if not any(_selected(case, [target]) for case in tests) and not known_path:
                 emit({'type': 'test_run_update', 'status': 'complete', 'counts': counts,
                       'exit_code': 'USAGE_ERROR',
                       'error': {'type': 'UsageError', 'message': 'test target not found: ' + target}})
                 return 4
-        selected = [case for case in tests if _selected(case.test_id, selection)]
+        selected = [case for case in tests if _selected(case, selection)]
         emit({'type': 'test_run_update', 'status': 'running_tests'})
         for index, case in enumerate(selected):
             emit({'type': 'test_updates', 'tests': [{'test_id': case.test_id, 'result': {'status': 'running'}}]})

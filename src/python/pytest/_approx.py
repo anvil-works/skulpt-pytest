@@ -19,6 +19,8 @@ class _Approx:
             raise TypeError('nested approximate comparisons are not supported')
 
     def _equal(self, actual, expected):
+        if isinstance(actual, bool) or isinstance(expected, bool):
+            return actual is expected
         if actual == expected:
             return True
         if not isinstance(actual, (int, float)) or not isinstance(expected, (int, float)):

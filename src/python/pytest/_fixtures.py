@@ -205,7 +205,7 @@ class FixtureContext:
             return entry.value
         if self.session.current.phase == 'teardown':
             raise AssertionError("fixture '%s' is no longer available during teardown" % name)
-        entry = _Entry(definition, store, _missing if parameter is _missing else parameter[1])
+        entry = _Entry(definition, store, parameter)
         store.cache[definition] = entry
         previous = self.resolving
         self.resolving = chain + [entry]

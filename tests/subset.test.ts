@@ -174,3 +174,68 @@ def test_dynamic(inner):
 ` } });
   expect(result.exitCode).toBe(0);
 });
+
+test("strict XPASS remains a failure even when teardown is expected to fail", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: { "test_strict.py": `import pytest
+@pytest.fixture
+def cleanup():
+    yield
+    raise ValueError('teardown failed')
+@pytest.mark.xfail(strict=True, reason='known failure')
+def test_strict(cleanup):
+    pass
+@pytest.mark.xfail(strict=False, reason='known failure')
+def test_nonstrict(cleanup):
+    pass
+` } });
+  expect(result.exitCode).toBe(1);
+  expect(finished(result.events).map(test => test.result.outcome)).toEqual(["failed", "xfailed"]);
+  expect(finished(result.events)[0].result.errors![0]).toMatchObject({ phase: "call", message: "[XPASS(strict)] known failure" });
+});
+
+test("function and parameter marks take precedence over module defaults", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: { "test_marks.py": `import pytest
+pytestmark = pytest.mark.xfail(strict=False, reason='module default')
+@pytest.mark.xfail(strict=True, reason='function')
+def test_function():
+    pass
+@pytest.mark.parametrize('value', [pytest.param(1, marks=pytest.mark.xfail(strict=True, reason='row'))])
+def test_row(value):
+    pass
+@pytest.mark.xfail(strict=False, reason='function first')
+@pytest.mark.parametrize('value', [pytest.param(1, marks=pytest.mark.xfail(strict=True, reason='row second'))])
+def test_function_first(value):
+    pass
+` } });
+  expect(result.exitCode).toBe(1);
+  expect(finished(result.events).map(test => [test.result.outcome, test.result.reason])).toEqual([
+    ["failed", "function"], ["failed", "row"], ["xpassed", "function first"],
+  ]);
+});
+
+test("approximate numeric tolerances never make different boolean fields equal", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: { "test_bool.py": `import pytest
+def test_boolean_fields():
+    assert {'enabled': False} != pytest.approx({'enabled': True}, abs=2)
+    assert 1 != pytest.approx(True)
+    assert True != pytest.approx(1)
+    assert True == pytest.approx(True)
+    assert [False] == pytest.approx([False])
+` } });
+  expect(result.exitCode).toBe(0);
+});
+
+test("exact parameter selection treats bracket and separator characters as ID data", async () => {
+  const { Sk } = runtime();
+  const files = { "test_ids.py": `import pytest
+@pytest.mark.parametrize('value', [pytest.param(1, id='x'), pytest.param(2, id='x][y'), pytest.param(3, id='x]/extra'), pytest.param(4, id='x]::extra')])
+def test_ids(value):
+    assert value == 1
+` };
+  const result = await runTests(Sk, { files, targets: ["test_ids.py::test_ids[x]"] });
+  expect(result.exitCode).toBe(0);
+  expect(finished(result.events).map(test => test.test_id)).toEqual(["test_ids.py::test_ids[x]"]);
+});
