@@ -7,6 +7,7 @@ import types
 from _skulpt_pytest import files, targets, emit
 from . import Failed, Skipped, XFailed, _Fixture
 from ._fixtures import FixtureSession, _arguments, _definitions
+from ._capture import CaptureFixture
 from ._marks import _marks, _parameter_rows
 
 
@@ -188,6 +189,7 @@ def _expectation(markers):
 def _run_test(case, session, close_module, close_session):
     started = time.time()
     context = session.context(case)
+    context.capture = CaptureFixture()
     raw_errors, called, expectation = [], False, None
     try:
         expectation = _expectation(case.marks)
@@ -212,7 +214,10 @@ def _run_test(case, session, close_module, close_session):
     except BaseException as error:
         raw_errors.append((context.phase, error))
     finally:
-        raw_errors.extend(('teardown', error) for error in session.finish(context, close_module, close_session))
+        try:
+            raw_errors.extend(('teardown', error) for error in session.finish(context, close_module, close_session))
+        finally:
+            captured = context.capture._stop()
     errors, expected_errors, reason, skipped = [], [], None, False
     options = expectation[1] if expectation and expectation[0] == 'xfail' else None
     for phase, error in raw_errors:
@@ -242,6 +247,10 @@ def _run_test(case, session, close_module, close_session):
     else:
         outcome = 'passed'
     result = {'status': 'finished', 'outcome': outcome, 'duration': time.time() - started}
+    if captured.out:
+        result['stdout'] = captured.out
+    if captured.err:
+        result['stderr'] = captured.err
     if errors:
         result['errors'] = errors
     if reason is not None:

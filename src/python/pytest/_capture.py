@@ -30,9 +30,10 @@ class _CaptureStream:
 
 
 class CaptureFixture:
-    def __init__(self):
+    def __init__(self, parent=None):
         self.original = (sys.stdout, sys.stderr)
         self.streams = (_CaptureStream(), _CaptureStream())
+        self.parent = parent
         self._disabled = False
         sys.stdout, sys.stderr = self.streams
 
@@ -47,16 +48,24 @@ class CaptureFixture:
         self._disabled = True
         sys.stdout, sys.stderr = self.original
         try:
-            yield
+            if self.parent is None:
+                yield
+            else:
+                # capsys.disabled() also bypasses the test's automatic capture.
+                with self.parent.disabled():
+                    yield
         finally:
             sys.stdout, sys.stderr = self.streams
             self._disabled = False
 
-    def _close(self):
-        # Restore both exact host objects before forwarding unread output.
+    def _stop(self):
         sys.stdout, sys.stderr = self.original
-        for original, stream in zip(self.original, self.streams):
-            text = stream.take()
+        return self.readouterr()
+
+    def _close(self):
+        # Fixture output not consumed by readouterr joins the outer test report.
+        captured = self._stop()
+        for original, text in zip(self.original, captured):
             if text:
                 original.write(text)
                 flush = getattr(original, 'flush', None)
@@ -65,6 +74,6 @@ class CaptureFixture:
 
 
 def _capsys(request):
-    capture = CaptureFixture()
+    capture = CaptureFixture(request._context.capture)
     request.addfinalizer(capture._close)
     return capture

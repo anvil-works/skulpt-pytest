@@ -16,7 +16,8 @@ test("upstream capsys suites cover both streams, reset, fixture teardown and nes
   const result = await runTests(Sk, { files });
   expect(result.exitCode).toBe(0);
   expect(finished(result.events)).toHaveLength(6);
-  expect(output.join("")).toBe("while capture is disabled\ntest_normal executed\nwhile capture is disabled 1\nwhile capture is disabled 2\nwhile capture is disabled 1 after\n");
+  expect(finished(result.events).find(test => test.test_id.endsWith("::test_normal"))!.result.stdout).toBe("test_normal executed\n");
+  expect(output.join("")).toBe("while capture is disabled\nwhile capture is disabled 1\nwhile capture is disabled 2\nwhile capture is disabled 1 after\n");
 });
 
 for (const [name, reason] of [["module_skip", "skip_module_level"], ["import_skip", "foobarbaz"], ["import_skip_reason", "just because"]]) {
@@ -39,18 +40,25 @@ test("upstream module skip without explicit permission is a collection error", a
 test("capture restores exact write-only host streams after suspension, disabling, replacement and failure", async () => {
   const { Sk } = runtime();
   Sk.builtins.pause = new Sk.builtin.func(() => Sk.misceval.promiseToSuspension(Promise.resolve(Sk.builtin.none.none$)));
-  const result = await runTests(Sk, { files: { "test_capture.py": `import sys
-import pytest
-class HostStream:
+  Sk.builtinFiles.files["src/lib/capture_host.py"] = `class HostStream:
     def __init__(self): self.text = ''
     def write(self, text): self.text += text
 out, err = HostStream(), HostStream()
-@pytest.fixture(scope='session', autouse=True)
-def host_streams():
-    original = sys.stdout, sys.stderr
-    sys.stdout, sys.stderr = out, err
-    yield
-    sys.stdout, sys.stderr = original
+`;
+  const host = await Sk.misceval.asyncToPromise(() => Sk.importModule("capture_host", false, true));
+  const sys = await Sk.misceval.asyncToPromise(() => Sk.importModule("sys", false, true));
+  const original = [sys.$d.stdout, sys.$d.stderr];
+  sys.$d.stdout = host.$d.out;
+  sys.$d.stderr = host.$d.err;
+  try {
+    const result = await runTests(Sk, { onEvent(event) {
+      if (event.type === "test_updates" && event.tests[0].result.status === "finished") {
+        expect(sys.$d.stdout).toBe(host.$d.out);
+        expect(sys.$d.stderr).toBe(host.$d.err);
+      }
+    }, files: { "test_capture.py": `import sys
+import pytest
+from capture_host import HostStream, out, err
 def test_failure(capsys):
     print('consumed')
     assert capsys.readouterr().out == 'consumed\\n'
@@ -66,11 +74,18 @@ def test_failure(capsys):
     sys.stderr = HostStream()
     assert False, 'exercise cleanup after failure'
 def test_restored():
-    assert sys.stdout is out and sys.stderr is err
-    assert out.text == 'visible\\nunread out\\n'
-    assert err.text == 'unread err\\n'
+    assert out.text == 'visible\\n'
+    assert err.text == ''
+    print('next test')
 ` } });
-  expect(finished(result.events).map(test => test.result.outcome)).toEqual(["failed", "passed"]);
+    expect(finished(result.events).map(test => test.result.outcome)).toEqual(["failed", "passed"]);
+    expect(finished(result.events)[0].result).toMatchObject({ stdout: "unread out\n", stderr: "unread err\n" });
+    expect(finished(result.events)[1].result.stdout).toBe("next test\n");
+    expect(sys.$d.stdout).toBe(host.$d.out);
+    expect(sys.$d.stderr).toBe(host.$d.err);
+  } finally {
+    [sys.$d.stdout, sys.$d.stderr] = original;
+  }
 });
 
 test("cached conftest skips block the whole subtree and preserve unrelated modules", async () => {

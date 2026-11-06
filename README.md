@@ -39,7 +39,9 @@ browser manifest. Selection does not suppress collection skips elsewhere in the
 manifest. A run with no selected test cases still exits 5, including when every
 module skips during collection.
 Events are `discovered_tests`, `test_updates` and `test_run_update`, with separate
-setup/call/teardown errors. Output streams through `Sk.output`. Exit codes: 0
+setup/call/teardown errors. Each finished test includes nonempty `stdout`/`stderr`
+captured across setup, call and teardown. Python output during collection and
+`capsys.disabled()` still uses the host streams. Exit codes: 0
 (passed), 1 (test/setup/teardown failure), 2 (collection error), 4 (unknown target)
 and 5 (no tests). One run can be active per runtime. `Sk.pytest` holds its source,
 targets, event callback and active state for the native bridge.
@@ -60,9 +62,10 @@ targets, event callback and active state for the native bridge.
 - Function-scoped `capsys`: Python `sys.stdout`/`sys.stderr` text capture,
   draining `readouterr()` results with `.out`/`.err` or tuple unpacking, and nested
   `disabled()` contexts. Cleanup restores the exact original streams and forwards
-  unread output to the host. Already-read output is consumed. This does not capture
-  JavaScript console output, file descriptors or stdin, or add automatic failure
-  output sections.
+  unread output to the enclosing test report. Already-read output is consumed.
+  `disabled()` bypasses fixture and automatic test capture. Capture covers Python
+  text streams; it does not capture JavaScript console output, file descriptors,
+  stdin or Python logging records as a separate field.
 - `pytest.approx`: numeric scalars and flat lists/tuples/dicts, with relative and
   absolute tolerances and `nan_ok`. Nonnumeric entries compare exactly.
 - `raises`, `fail`, `skip`, `xfail`; `skip`, boolean `skipif`, `xfail` and
@@ -86,7 +89,7 @@ including when the host callback aborts a run.
 Class/package/dynamic fixture scopes, parametrized module/session fixtures,
 parametrisation `scope=`, keyword-only/positional-only fixture arguments, test
 classes, generator tests, string mark conditions and CLI flags are unsupported.
-There are no filesystem/environment fixtures, plugin hooks, global output capture,
+There are no filesystem/environment fixtures, plugin hooks, collection output capture,
 NumPy/Decimal/nested `approx`, hidden parameter IDs or assertion-value rewriting.
 The chosen Skulpt formatter does not render exception groups or exception notes.
 
