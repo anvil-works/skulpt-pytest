@@ -16,6 +16,23 @@ test("runs pytest's exception assertion bodies", async () => {
   expect(finished(result.events)).toHaveLength(8);
 });
 
+test("enforces the native bridge's positional argument signatures", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: { "test_bridge.py": `import pytest
+import _skulpt_pytest as host
+def test_arguments():
+    with pytest.raises(TypeError):
+        host.files('unexpected')
+    with pytest.raises(TypeError):
+        host.targets(targets=[])
+    with pytest.raises(TypeError):
+        host.emit()
+    with pytest.raises(TypeError):
+        host.emit({}, {})
+` } });
+  expect(result.exitCode).toBe(0);
+});
+
 test("preserves pytest's yield setup/teardown behavior after passing and failing tests", async () => {
   const { Sk, output } = runtime();
   const result = await runTests(Sk, { files: { "test_yield.py": upstream("yield_lifecycle") } });
