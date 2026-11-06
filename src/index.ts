@@ -15,6 +15,8 @@ export interface TestResult {
   duration?: number;
   errors?: TestError[];
   reason?: string;
+  stdout?: string;
+  stderr?: string;
 }
 export interface DiscoveredTest { test_id: string; file_path: string; line: number; name: string }
 export type TestEvent =

@@ -38,7 +38,8 @@ test("preserves pytest's yield setup/teardown behavior after passing and failing
   const result = await runTests(Sk, { files: { "test_yield.py": upstream("yield_lifecycle") } });
   expect(result.exitCode).toBe(1);
   expect(finished(result.events).map(test => test.result.outcome)).toEqual(["passed", "failed"]);
-  expect(output.join("")).toBe("setup\ntest1 1\nteardown\nsetup\ntest2 1\nteardown\n");
+  expect(finished(result.events).map(test => test.result.stdout)).toEqual(["setup\ntest1 1\nteardown\n", "setup\ntest2 1\nteardown\n"]);
+  expect(output).toEqual([]);
   const error = finished(result.events)[1].result.errors![0];
   expect(error.phase).toBe("call");
   expect(error.traceback).toContain("assert 0");
@@ -94,7 +95,8 @@ def test_skip(base):
 `,
   } });
   expect(finished(result.events).map(test => test.result.outcome)).toEqual(["error", "error", "skipped"]);
-  expect(output.join("")).toBe("base setup\nouter cleanup\nbase cleanup\nbase setup\nbase cleanup\nbase setup\nbase cleanup\n");
+  expect(finished(result.events).map(test => test.result.stdout)).toEqual(["base setup\nouter cleanup\nbase cleanup\n", "base setup\nbase cleanup\n", "base setup\nbase cleanup\n"]);
+  expect(output).toEqual([]);
 });
 
 test("waits for host suspensions and rejects concurrent runs without losing teardown", async () => {
@@ -122,7 +124,8 @@ def test_pause(resource):
   resume();
   const result = await pending;
   expect(result.exitCode).toBe(1);
-  expect(output.join("")).toBe("cleaned\n");
+  expect(finished(result.events)[0].result.stdout).toBe("cleaned\n");
+  expect(output).toEqual([]);
   expect(finished(result.events)[0].result.errors![0].traceback).toContain("assert resource == 42");
 });
 

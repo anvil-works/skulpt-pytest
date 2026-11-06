@@ -20,8 +20,9 @@ test("runs the built-in pytest module and upstream cases in a real browser", asy
       collection_skips: [{ file_path: "tests/client_tests/test_optional.py", reason: "demonstrate optional module" }] });
     const failed = result.events.flatMap(event => event.type === "test_updates" ? event.tests : [])
       .find(test => test.result.outcome === "failed")!;
+    expect(failed.result.stdout).toBe("browser fixture cleaned up\n");
     expect(failed.result.errors![0].traceback).toContain("assert resource == 42");
-    expect(await page.locator("#output").textContent()).toBe("uncaptured browser output\nbrowser fixture cleaned up\nbrowser fixture cleaned up\n");
+    expect(await page.locator("#output").textContent()).toBe("uncaptured browser output\n");
   } finally {
     await browser.close();
     await server.server.close();

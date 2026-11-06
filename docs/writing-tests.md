@@ -48,6 +48,11 @@ when it unexpectedly passes, strict mode fails the run so the marker can be remo
 Use `capsys.readouterr()` to assert Python diagnostics; each read clears the
 buffers. `capsys.disabled()` temporarily sends output to the normal host writer.
 Capture also works in dependent fixture setup/cleanup and across suspended calls.
+Every test automatically captures stdout/stderr for its result, even without
+requesting `capsys`. A `readouterr()` clears fixture output, while phase boundaries
+copy unread output to the result and retain it for later fixture reads. Reading
+in teardown does not remove setup/call text already in the report.
+`disabled()` bypasses both capture layers.
 
 ```python
 def test_diagnostic(capsys):
@@ -69,6 +74,6 @@ matching and must return a truthy value. Keep the explicit exception type.
 
 Skulpt's suspended host calls resume normally inside tests, fixtures and cleanup;
 Python async test functions are not supported by this runtime. Test output uses
-the host's output stream, except while `capsys` captures it. There is no `tmp_path`,
+per-test stdout/stderr fields; `capsys.disabled()` uses the host stream. There is no `tmp_path`,
 environment patching, plugin loading or filesystem discovery. See the [API boundary](../README.md#supported-api)
 before introducing another pytest feature.

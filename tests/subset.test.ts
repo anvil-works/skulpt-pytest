@@ -96,7 +96,8 @@ def test_lifetime(resource, request):
 ` } });
   expect(result.exitCode).toBe(1);
   expect(finished(result.events)[0].result.errors![0]).toMatchObject({ phase: "teardown", message: "cleanup failed" });
-  expect(output.join("")).toBe("yield cleanup\nlast cleanup\nsession closed\n");
+  expect(finished(result.events)[0].result.stdout).toBe("yield cleanup\nlast cleanup\nsession closed\n");
+  expect(output).toEqual([]);
 });
 
 test("not-run marks avoid fixture setup and empty parameters skip without executing the body", async () => {
@@ -154,7 +155,8 @@ def test_b(dependency):
 `,
   } });
   expect(result.exitCode).toBe(0);
-  expect(output.join("")).toBe("root\n");
+  expect(finished(result.events).map(test => test.result.stdout ?? "").join("")).toBe("root\n");
+  expect(output).toEqual([]);
 });
 
 test("dynamic dependants are unavailable after their cleanup but before dependency cleanup", async () => {

@@ -30,14 +30,20 @@ class _CaptureStream:
 
 
 class CaptureFixture:
-    def __init__(self):
-        self.original = (sys.stdout, sys.stderr)
+    def __init__(self, parent=None):
         self.streams = (_CaptureStream(), _CaptureStream())
+        self.parent = parent
         self._disabled = False
+        self._saved = CaptureResult('', '')
+
+    def _start(self):
+        self.original = (sys.stdout, sys.stderr)
         sys.stdout, sys.stderr = self.streams
 
     def readouterr(self):
-        return CaptureResult(*(stream.take() for stream in self.streams))
+        captured = CaptureResult(*(saved + stream.take() for saved, stream in zip(self._saved, self.streams)))
+        self._saved = CaptureResult('', '')
+        return captured
 
     @contextmanager
     def disabled(self):
@@ -47,16 +53,29 @@ class CaptureFixture:
         self._disabled = True
         sys.stdout, sys.stderr = self.original
         try:
-            yield
+            if self.parent is None:
+                yield
+            else:
+                # capsys.disabled() also bypasses the test's automatic capture.
+                with self.parent.disabled():
+                    yield
         finally:
             sys.stdout, sys.stderr = self.streams
             self._disabled = False
 
-    def _close(self):
-        # Restore both exact host objects before forwarding unread output.
+    def _stop(self):
         sys.stdout, sys.stderr = self.original
-        for original, stream in zip(self.original, self.streams):
-            text = stream.take()
+        return self.readouterr()
+
+    def _close(self):
+        sys.stdout, sys.stderr = self.original
+        self._flush()
+
+    def _flush(self):
+        # Preserve phase output for a later fixture read without replaying it.
+        captured = CaptureResult(*(stream.take() for stream in self.streams))
+        self._saved = CaptureResult(*(saved + text for saved, text in zip(self._saved, captured)))
+        for original, text in zip(self.original, captured):
             if text:
                 original.write(text)
                 flush = getattr(original, 'flush', None)
@@ -65,6 +84,17 @@ class CaptureFixture:
 
 
 def _capsys(request):
-    capture = CaptureFixture()
+    capture = CaptureFixture(request._context.capture)
+    capture._start()
+    request._context.capsys = capture
     request.addfinalizer(capture._close)
     return capture
+
+
+@contextmanager
+def capture_phase(context):
+    try:
+        yield
+    finally:
+        if context.capsys is not None:
+            context.capsys._flush()
