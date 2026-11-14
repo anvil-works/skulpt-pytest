@@ -154,6 +154,8 @@ def _cases(path, name, function, definitions, module_marks):
 def _unittest_cases(path, name, cls, definitions, module_marks):
     if not getattr(cls, '__test__', True):
         return
+    definitions = _with_unittest_hooks(definitions, cls, 'class', 'setUpClass', 'tearDownClass',
+                                       getattr(cls, 'doClassCleanups', None))
     methods = []
     for method_name in sorted(dir(cls)):
         if method_name.startswith('test'):
@@ -184,7 +186,7 @@ class _UnittestResult:
         self._errors = errors
 
     def startTest(self, test):
-        pass
+        self._test = test
 
     def stopTest(self, test):
         pass
@@ -198,15 +200,25 @@ class _UnittestResult:
     addFailure = addError
 
     def addSkip(self, test, reason):
-        self._errors.append(('call', unittest.SkipTest(reason)))
+        # A skipped subtest does not skip the containing method.
+        if test is self._test:
+            self._errors.append(('call', unittest.SkipTest(reason)))
+
+    def addExpectedFailure(self, test, err):
+        self._errors.append(('call', XFailed(str(err[1]))))
+
+    def addUnexpectedSuccess(self, test):
+        self._errors.append(('call', Failed('Unexpected success')))
+
+    def addSubTest(self, test, subtest, err):
+        if err is not None:
+            self._errors.append(('call', err[1], str(subtest)))
 
 
 def _run_unittest(case, errors):
     cls, method_name = case.unittest_method
     if not hasattr(unittest.TestCase, 'run'):
         raise NotImplementedError('unittest methods require a Skulpt build with TestCase.run')
-    if any(callable(getattr(cls, name, None)) for name in ('setUpClass', 'tearDownClass')):
-        raise NotImplementedError('unittest class setup and teardown are not supported yet')
     code = getattr(case.function, '__code__', None)
     if code is not None and code.co_flags & 0x20:  # CO_GENERATOR
         raise NotImplementedError('generator tests are not supported')
@@ -252,7 +264,7 @@ def _expectation(markers):
     return None
 
 
-def _run_test(case, session, close_module, close_session):
+def _run_test(case, session, close_module, close_session, close_class=False):
     started = time.time()
     context = session.context(case)
     context.capture._start()
@@ -266,6 +278,9 @@ def _run_test(case, session, close_module, close_session):
                 raise Skipped(expectation[1])
             if expectation and not expectation[1].get('run', True):
                 raise XFailed('[NOTRUN] ' + expectation[1].get('reason', ''))
+            for name in ('<unittest module hooks>', '<unittest class hooks>'):
+                if name in case.definitions:
+                    context.resolve(name)
             for name, layered in case.definitions.items():
                 if any(definition.autouse for definition in layered):
                     context.resolve(name)
@@ -290,12 +305,13 @@ def _run_test(case, session, close_module, close_session):
         raw_errors.append((context.phase, error))
     finally:
         try:
-            raw_errors.extend(('teardown', error) for error in session.finish(context, close_module, close_session))
+            raw_errors.extend(('teardown', error) for error in session.finish(context, close_module, close_session, close_class))
         finally:
             captured = context.capture._stop()
     errors, expected_errors, reason, skipped = [], [], None, False
     options = expectation[1] if expectation and expectation[0] == 'xfail' else None
-    for phase, error in raw_errors:
+    for item in raw_errors:
+        phase, error = item[:2]
         if isinstance(error, (Skipped, unittest.SkipTest)):
             skipped, reason = True, str(error)
         elif isinstance(error, XFailed):
@@ -305,7 +321,10 @@ def _run_test(case, session, close_module, close_session):
             expected_errors.append((phase, error))
             reason = options.get('reason', '')
         else:
-            errors.append(_error(error, phase))
+            entry = _error(error, phase)
+            if len(item) == 3:
+                entry['subtest'] = item[2]
+            errors.append(entry)
     if called and options is not None and options.get('strict', False):
         # A strict successful call is a failure even if teardown separately xfails.
         reason = options.get('reason', '')
@@ -478,6 +497,35 @@ def _case_keywords(case):
     return [name.lower() for name in names if name]
 
 
+def _with_unittest_hooks(definitions, owner, scope, setup_name, teardown_name, cleanup):
+    setup = getattr(owner, setup_name, None)
+    teardown = getattr(owner, teardown_name, None)
+    if setup is None and teardown is None:
+        return definitions
+
+    def hooks(request):
+        if cleanup is not None:
+            def clean_up():
+                cleanup()
+                if scope == 'class':
+                    for _, error, traceback in reversed(owner.tearDown_exceptions):
+                        def report(error=error, traceback=traceback):
+                            raise error.with_traceback(traceback)
+                        request.addfinalizer(report)
+            request.addfinalizer(clean_up)
+        if setup is not None:
+            setup()
+        try:
+            yield
+        finally:
+            if teardown is not None:
+                teardown()
+
+    # Internal fixture names cannot collide with Python identifiers.
+    name = '<unittest %s hooks>' % scope
+    return dict(definitions, **{name: [_Fixture(hooks, name, True, scope)]})
+
+
 def _selected(case, selection):
     return not selection or any(target == '.' or case.test_id == target or case.path == target
                                or case.path.startswith(target.rstrip('/') + '/')
@@ -540,16 +588,14 @@ def run(args):
                 source_path = path
                 module = load(path)
                 _add_fixtures(definitions, module)
+                definitions = _with_unittest_hooks(definitions, module, 'module', 'setUpModule', 'tearDownModule',
+                                                   getattr(unittest, 'doModuleCleanups', None))
                 module_marks = _marks(getattr(module, 'pytestmark', ()))
                 # Check type(...) directly so lazy module globals (e.g. app_tables) do not trigger __getattr__.
                 for name, function in module.__dict__.items():
                     is_class = issubclass(type(function), type)
                     if is_class and issubclass(function, unittest.TestCase):
-                        cases = list(_unittest_cases(path, name, function, definitions, module_marks))
-                        if cases and any(callable(getattr(module, hook, None))
-                                         for hook in ('setUpModule', 'tearDownModule')):
-                            raise NotImplementedError('unittest module setup and teardown are not supported yet')
-                        tests.extend(cases)
+                        tests.extend(_unittest_cases(path, name, function, definitions, module_marks))
                     elif name.startswith('Test') and is_class:
                         raise NotImplementedError('test classes are not yet supported')
                     elif name.startswith('test_') and type(function) is types.FunctionType:
@@ -608,7 +654,10 @@ def run(args):
         for index, case in enumerate(selected):
             emit({'type': 'test_updates', 'tests': [{'test_id': case.test_id, 'result': {'status': 'running'}}]})
             close_module = index + 1 == len(selected) or selected[index + 1].path != case.path
-            result = _run_test(case, session, close_module, index + 1 == len(selected))
+            close_class = case.unittest_method is not None and (
+                close_module or case.base_name.rpartition('::')[0] !=
+                selected[index + 1].base_name.rpartition('::')[0])
+            result = _run_test(case, session, close_module, index + 1 == len(selected), close_class)
             counts[result['outcome']] += 1
             emit({'type': 'test_updates', 'tests': [{'test_id': case.test_id, 'result': result}]})
         code = 5 if not selected else (1 if counts['failed'] or counts['error'] else 0)
