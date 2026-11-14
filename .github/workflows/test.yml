@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: anvil-works/skulpt
-          ref: e930f7c030f67d20992ec577d812ca7c5b486d94
+          ref: cef44e2a945e698d63f05588acc17def656a9c5f
           path: .scratch/skulpt
       - run: npm ci && npm run devbuild
         working-directory: .scratch/skulpt

@@ -3,7 +3,7 @@ from . import Failed, MonkeyPatch, _Fixture
 from ._capture import CaptureFixture, _capsys
 
 _missing = object()
-_scope_order = {'function': 0, 'module': 1, 'session': 2}
+_scope_order = {'function': 0, 'class': 1, 'module': 2, 'session': 3}
 
 
 class FixtureLookupError(Exception):
@@ -121,6 +121,7 @@ class FixtureSession:
     def __init__(self):
         self.scope = _Scope()
         self.modules = {}
+        self.test_class = _Scope()
         self.current = None
         # Keep the streams stable for handlers created by broader fixtures.
         self.capture = CaptureFixture()
@@ -135,9 +136,12 @@ class FixtureSession:
             self.modules[path] = _Scope()
         return self.modules[path]
 
-    def finish(self, context, close_module, close_session):
+    def finish(self, context, close_module, close_session, close_class=False):
         context.phase = 'teardown'
         errors = context.scope.close()
+        if close_class:
+            errors.extend(self.test_class.close())
+            self.test_class = _Scope()
         if close_module:
             module = self.modules.pop(context.case.path, None)
             if module is not None:
@@ -152,6 +156,7 @@ class FixtureSession:
         if self.current is not None:
             self.current.phase = 'teardown'
             errors.extend(self.current.scope.close())
+        errors.extend(self.test_class.close())
         for scope in reversed(list(self.modules.values())):
             errors.extend(scope.close())
         self.modules.clear()
@@ -197,6 +202,8 @@ class FixtureContext:
             raise NotImplementedError('parametrized fixtures currently require function scope')
         if definition.scope == 'function':
             store = self.scope
+        elif definition.scope == 'class':
+            store = self.session.test_class
         elif definition.scope == 'session':
             store = self.session.scope
         else:

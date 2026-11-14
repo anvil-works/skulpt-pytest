@@ -8,7 +8,7 @@ import approx from "./python/pytest/_approx.py?raw";
 import capture from "./python/pytest/_capture.py?raw";
 
 export type Outcome = "passed" | "failed" | "error" | "skipped" | "xfailed" | "xpassed";
-export interface TestError { phase: "setup" | "call" | "teardown"; type: string; message: string; traceback: string }
+export interface TestError { phase: "setup" | "call" | "teardown"; type: string; message: string; traceback: string; subtest?: string }
 export interface TestResult {
   status: "running" | "finished";
   outcome?: Outcome;

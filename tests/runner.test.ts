@@ -89,6 +89,69 @@ class TestGenerator(unittest.TestCase):
   expect(finished(result.events)[0].result.errors?.[0].message).toBe("generator tests are not supported");
 });
 
+test("runs upstream unittest cleanups after setup and teardown failures", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: {
+    "test_cleanup_setup.py": upstream("unittest_cleanup_setup"),
+    "test_cleanup_teardown.py": upstream("unittest_cleanup_teardown"),
+  } });
+  expect(result.exitCode).toBe(1);
+  expect(result.events.at(-1)).toMatchObject({ counts: { passed: 2, failed: 4 } });
+});
+
+test("reports upstream unittest expected failures and unexpected successes", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: {
+    "test_expected_failure.py": upstream("unittest_expected_failure"),
+    "test_unexpected_success.py": upstream("unittest_unexpected_success"),
+  } });
+  expect(result.exitCode).toBe(1);
+  const [expected, unexpected] = finished(result.events).map(test => test.result);
+  expect(expected.outcome).toBe("xfailed");
+  expect(unexpected.errors?.[0].message).toBe("Unexpected success");
+});
+
+test("runs upstream unittest class and module hooks at fixture scope", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: {
+    "test_class_hooks.py": upstream("unittest_class_hooks"),
+    "test_module_hooks.py": upstream("unittest_module_hooks"),
+    "test_module_setup_error.py": upstream("unittest_module_setup_error"),
+  } });
+  expect(result.exitCode).toBe(1);
+  expect(result.events.at(-1)).toMatchObject({ counts: { passed: 5, error: 1 } });
+  expect(finished(result.events).at(-1)?.result.errors?.[0]).toMatchObject({
+    phase: "setup", type: "ZeroDivisionError", traceback: expect.stringContaining("0/0"),
+  });
+});
+
+test("keeps upstream subtest failures and the parent failure in the method result", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: {
+    "test_subtests.py": upstream("unittest_subtests"),
+    "test_subtests_skip.py": upstream("unittest_subtest_skip"),
+  } });
+  const [bar, foo, zaz, skippedSubtests] = finished(result.events).map(test => test.result);
+  expect(result.exitCode).toBe(1);
+  expect(bar.errors?.map(error => [error.subtest, error.message])).toEqual([
+    ["[bar subtest]", "bar subtest failure"], [undefined, "test_bar also failed"],
+  ]);
+  expect(foo.errors?.[0]).toMatchObject({ subtest: "[foo subtest]", message: "foo subtest failure" });
+  expect(zaz.outcome).toBe("passed");
+  expect(skippedSubtests.outcome).toBe("passed");
+});
+
+test("runs upstream class cleanups once even if a class hook fails", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: {
+    "test_class_cleanup_setup.py": upstream("unittest_class_cleanup_setup_failure"),
+    "test_class_cleanup_success.py": upstream("unittest_class_cleanup_success"),
+    "test_class_cleanup_teardown.py": upstream("unittest_class_cleanup_teardown_failure"),
+  } });
+  expect(result.exitCode).toBe(1);
+  expect(result.events.at(-1)).toMatchObject({ counts: { passed: 6, error: 2, failed: 0 } });
+});
+
 test("runs pytest's exception assertion bodies", async () => {
   const { Sk } = runtime();
   const result = await runTests(Sk, { files: { "tests/client_tests/test_raises.py": upstream("raises") } });
