@@ -116,7 +116,7 @@ is required for local development.
 ## Development
 
 Use a Skulpt build with `unittest.TestCase.run` for `TestCase` discovery and
-execution. CI builds the [pinned Skulpt revision](https://github.com/anvil-works/skulpt/commit/2802c9ba1181455f185e835e283e691b3ba2dd0c).
+execution. CI builds the [pinned Skulpt revision](https://github.com/anvil-works/skulpt/commit/cef44e2a945e698d63f05588acc17def656a9c5f).
 
 ```sh
 pnpm install
