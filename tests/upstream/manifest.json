@@ -192,6 +192,90 @@
       "source_test": "test_runTest_method",
       "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L28",
       "reuse": "unchanged embedded Python module; replace pytester and terminal assertions with Rstest result assertions"
+    },
+    {
+      "candidate": "unittest_cleanup_setup.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_do_cleanups_on_setup_failure",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L1525",
+      "reuse": "unchanged embedded suite; results asserted through runTests"
+    },
+    {
+      "candidate": "unittest_cleanup_teardown.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_do_cleanups_on_teardown_failure",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L1550",
+      "reuse": "unchanged embedded suite; results asserted through runTests"
+    },
+    {
+      "candidate": "unittest_expected_failure.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_unittest_expected_failure_for_failing_test_is_xfail",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L804",
+      "reuse": "unchanged embedded suite; results asserted through runTests"
+    },
+    {
+      "candidate": "unittest_unexpected_success.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_unittest_expected_failure_for_passing_test_is_fail",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L830",
+      "reuse": "unchanged embedded suite; results asserted through runTests"
+    },
+    {
+      "candidate": "unittest_class_hooks.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_setup_setUpClass",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L311",
+      "reuse": "unchanged embedded suite; results asserted through runTests"
+    },
+    {
+      "candidate": "unittest_module_hooks.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_setUpModule",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L89",
+      "reuse": "unchanged embedded suite; results asserted through runTests"
+    },
+    {
+      "candidate": "unittest_module_setup_error.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_setUpModule_failing_no_teardown",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L111",
+      "reuse": "unchanged embedded suite; results asserted through runTests"
+    },
+    {
+      "candidate": "unittest_subtests.py",
+      "source_path": "testing/test_subtests.py",
+      "source_test": "TestUnittestSubTest.test_failures",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_subtests.py#L437",
+      "reuse": "unchanged body; report subtest failures under the parent method rather than as separate collected tests"
+    },
+    {
+      "candidate": "unittest_subtest_skip.py",
+      "source_path": "testing/test_subtests.py",
+      "source_test": "TestUnittestSubTest.test_skip",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_subtests.py#L519",
+      "reuse": "unchanged body; assert parent method passed"
+    },
+    {
+      "candidate": "unittest_class_cleanup_success.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_do_class_cleanups_on_success",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L1425",
+      "reuse": "unchanged embedded suite; report outcomes through runTests"
+    },
+    {
+      "candidate": "unittest_class_cleanup_setup_failure.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_do_class_cleanups_on_setupclass_failure",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L1450",
+      "reuse": "unchanged embedded suite; report outcomes through runTests"
+    },
+    {
+      "candidate": "unittest_class_cleanup_teardown_failure.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_do_class_cleanups_on_teardownclass_failure",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L1474",
+      "reuse": "unchanged embedded suite; report outcomes through runTests"
     }
   ]
 }
