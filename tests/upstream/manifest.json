@@ -129,6 +129,69 @@
       "source_test": "TestFillFixtures.test_override_fixture_reusing_super_fixture_parametrization",
       "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/python/fixtures.py#L539",
       "reuse": "scalar parent replaces parametrisation/request.param; child fixture and assertion remain unchanged"
+    },
+    {
+      "candidate": "unittest_simple.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_simple_unittest",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L12",
+      "reuse": "unchanged embedded Python module; replace pytester and terminal assertions with Rstest result assertions"
+    },
+    {
+      "candidate": "unittest_instances.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_new_instances",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L132",
+      "reuse": "unchanged embedded Python module; replace pytester and terminal assertions with Rstest result assertions"
+    },
+    {
+      "candidate": "unittest_teardown.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_teardown",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L170",
+      "reuse": "unchanged embedded Python module; replace pytester and terminal assertions with Rstest result assertions"
+    },
+    {
+      "candidate": "unittest_double_failure.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_method_and_teardown_failing_reporting",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L268",
+      "reuse": "unchanged embedded Python module; replace pytester and terminal assertions with Rstest result assertions"
+    },
+    {
+      "candidate": "unittest_setup_failure.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_setup_failure_is_shown",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L292",
+      "reuse": "unchanged embedded Python module; replace pytester and terminal assertions with Rstest result assertions"
+    },
+    {
+      "candidate": "unittest_skip_class.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_unittest_skip_issue148",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L226",
+      "reuse": "unchanged embedded Python module; replace pytester and terminal assertions with Rstest result assertions"
+    },
+    {
+      "candidate": "unittest_skip_method.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_unittest_skip_issue1169",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L1022",
+      "reuse": "unchanged embedded Python module; replace pytester and terminal assertions with Rstest result assertions"
+    },
+    {
+      "candidate": "unittest_raise_skip.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_unittest_raise_skip_issue748",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L1003",
+      "reuse": "unchanged embedded Python module; replace pytester and terminal assertions with Rstest result assertions"
+    },
+    {
+      "candidate": "unittest_run_test.py",
+      "source_path": "testing/test_unittest.py",
+      "source_test": "test_runTest_method",
+      "source_url": "https://github.com/pytest-dev/pytest/blob/ae1d0ff57b8bd4252da9ade7353523ac0ac73281/testing/test_unittest.py#L28",
+      "reuse": "unchanged embedded Python module; replace pytester and terminal assertions with Rstest result assertions"
     }
   ]
 }

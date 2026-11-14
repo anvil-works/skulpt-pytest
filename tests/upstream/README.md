@@ -13,6 +13,8 @@ The complete MIT notice is in [licenses/pytest.txt](../../licenses/pytest.txt).
 - `missing_dependency.py`: a transitive missing-fixture error.
 - `collection_callable.py`: excluding a callable instance from collection.
   Upstream's warning assertion is outside this milestone.
+- `unittest_*.py`: embedded pytester suites covering method discovery, `runTest`,
+  assertion failures, per-method instances, setup and teardown, and skips.
 
 Rstest's event assertions are new integration coverage; pytester's filesystem
 and plugin harness is not reused. Browser, suspension, caching and repeated-run

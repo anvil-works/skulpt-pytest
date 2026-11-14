@@ -1,4 +1,5 @@
 import pytest
+import unittest
 
 
 @pytest.fixture
@@ -19,3 +20,22 @@ def test_passing(resource):
 def test_failing(resource):
     pause()
     assert resource == 42
+
+
+class BrowserCase(unittest.TestCase):
+    __test__ = False
+
+    def test_suspension(self):
+        self.assertEqual(self.value, 41)
+        pause()
+        print('resumed unittest method')
+
+
+class TestBrowserCase(BrowserCase):
+    __test__ = True
+
+    def setUp(self):
+        self.value = 41
+
+    def tearDown(self):
+        print('unittest teardown')
