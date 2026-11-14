@@ -9,6 +9,86 @@ function finished(events: TestEvent[]) {
     .filter(test => test.result.status === "finished");
 }
 
+test("runs upstream unittest methods and reports the assertion traceback", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: { "test_simple.py": upstream("unittest_simple") } });
+  expect(result.exitCode).toBe(1);
+  expect(finished(result.events).map(({ test_id, result }) => [test_id, result.outcome])).toEqual([
+    ["test_simple.py::MyTestCase::test_failing", "failed"],
+    ["test_simple.py::MyTestCase::testpassing", "passed"],
+  ]);
+  expect(finished(result.events)[0].result.errors?.[0]).toMatchObject({
+    type: "AssertionError",
+    traceback: expect.stringContaining("self.assertEqual('foo', 'bar')"),
+  });
+});
+
+test("reuses upstream unittest instance and lifecycle cases", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: {
+    "test_double_failure.py": upstream("unittest_double_failure"),
+    "test_instances.py": upstream("unittest_instances"),
+    "test_setup_failure.py": upstream("unittest_setup_failure"),
+    "test_teardown.py": upstream("unittest_teardown"),
+  } });
+  expect(result.exitCode).toBe(1);
+  const results = finished(result.events).map(test => test.result);
+  expect(results.map(result => result.outcome)).toEqual(["failed", "passed", "passed", "failed", "passed", "passed"]);
+  expect(results[0].errors?.map(error => error.message)).toEqual(["down2", "down1"]);
+  expect(results[3].errors?.[0].traceback).toContain("assert 0");
+  expect(results[3].stdout).toBeUndefined();
+});
+
+test("reuses upstream unittest skip and runTest cases", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: {
+    "test_run_test.py": upstream("unittest_run_test"),
+    "test_skip_class.py": upstream("unittest_skip_class"),
+    "test_skip_method.py": upstream("unittest_skip_method"),
+    "test_skip_raised.py": upstream("unittest_raise_skip"),
+  } });
+  expect(result.exitCode).toBe(0);
+  expect(finished(result.events).map(({ test_id, result }) => [test_id, result.outcome, result.reason])).toEqual([
+    ["test_run_test.py::MyTestCaseWithRunTest::runTest", "passed", undefined],
+    ["test_run_test.py::MyTestCaseWithoutRunTest::test_something", "passed", undefined],
+    ["test_skip_class.py::MyTestCase::test_one", "skipped", "hello"],
+    ["test_skip_method.py::MyTestCase::test_skip", "skipped", "skipping due to reasons"],
+    ["test_skip_raised.py::MyTestCase::test_one", "skipped", "skipping due to reasons"],
+  ]);
+});
+
+test("distinguishes strict xfail failures from unexpected unittest passes", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: { "test_xfail.py": `import pytest
+import unittest
+
+class TestKnown(unittest.TestCase):
+    @pytest.mark.xfail(reason='known', strict=True)
+    def test_failure(self):
+        self.fail('boom')
+
+    @pytest.mark.xfail(reason='known', strict=True)
+    def test_pass(self):
+        pass
+` } });
+  expect(result.exitCode).toBe(1);
+  const [failure, pass] = finished(result.events).map(test => test.result);
+  expect(failure).toMatchObject({ outcome: "xfailed", reason: "known" });
+  expect(pass.errors?.[0].message).toBe("[XPASS(strict)] known");
+});
+
+test("does not silently pass a unittest generator method", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: { "test_generator_method.py": `import unittest
+
+class TestGenerator(unittest.TestCase):
+    def test_generator(self):
+        yield 1
+` } });
+  expect(result.exitCode).toBe(1);
+  expect(finished(result.events)[0].result.errors?.[0].message).toBe("generator tests are not supported");
+});
+
 test("runs pytest's exception assertion bodies", async () => {
   const { Sk } = runtime();
   const result = await runTests(Sk, { files: { "tests/client_tests/test_raises.py": upstream("raises") } });

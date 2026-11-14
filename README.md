@@ -28,7 +28,8 @@ manifest is not a filesystem. Each run re-creates its test modules and restores
 their temporary module/source-cache entries afterwards. Imported app state
 remains owned by the host; use a fresh browser/runtime for a fresh app.
 
-`targets` selects virtual directories, files or `file.py::test_function` IDs.
+`targets` selects virtual directories, files, `file.py::test_function` IDs,
+and unittest classes or methods such as `file.py::TestCase::test_method`.
 Discovery imports all test modules before selection so it can report the full
 inventory; a collection error in any of them prevents execution.
 Module-level skips are reported in the completion event's `collection_skips`
@@ -87,9 +88,15 @@ Fixture cleanup is LIFO and continues after a cleanup error. Module fixtures clo
 at the last selected test of that module; session fixtures close before completion,
 including when the host callback aborts a run.
 
+`unittest.TestCase` methods run on a fresh instance with `setUp` and `tearDown`.
+Unittest assertions stop the method on failure and appear in its traceback.
+Subclass constructors must accept the method name, as in CPython.
+Unittest class/module hooks, fixture arguments, parametrisation and plain pytest
+test classes are outside this subset.
+
 Class/package/dynamic fixture scopes, parametrized module/session fixtures,
-parametrisation `scope=`, keyword-only/positional-only fixture arguments, test
-classes, generator tests, string mark conditions and CLI flags are unsupported.
+parametrisation `scope=`, keyword-only/positional-only fixture arguments,
+generator tests, string mark conditions and CLI flags are unsupported.
 There are no filesystem/environment fixtures, plugin hooks, collection output capture,
 NumPy/Decimal/nested `approx`, hidden parameter IDs or assertion-value rewriting.
 The chosen Skulpt formatter does not render exception groups or exception notes.
@@ -100,10 +107,8 @@ is required for local development.
 
 ## Development
 
-Use the Skulpt foundation at
-[2f6f0b3b](https://github.com/anvil-works/skulpt/commit/2f6f0b3b93c8d7e0ec70ed8fe352c5b53dd498c7),
-the tip of [the prerequisite PR stack](https://github.com/anvil-works/skulpt/pull/87).
-An existing local `dist` is enough; no npm publish is needed.
+Use a Skulpt build with `unittest.TestCase.run` for `TestCase` discovery and
+execution. CI builds the [pinned Skulpt revision](https://github.com/anvil-works/skulpt/commit/e930f7c030f67d20992ec577d812ca7c5b486d94).
 
 ```sh
 pnpm install
