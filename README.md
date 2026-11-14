@@ -89,7 +89,8 @@ at the last selected test of that module; session fixtures close before completi
 including when the host callback aborts a run.
 
 `unittest.TestCase` methods run on a fresh instance with `setUp` and `tearDown`.
-Skulpt's legacy assertion failures retain their message in captured stdout.
+Unittest assertions stop the method on failure and appear in its traceback.
+Subclass constructors must accept the method name, as in CPython.
 Unittest class/module hooks, fixture arguments, parametrisation and plain pytest
 test classes are outside this subset.
 
@@ -106,11 +107,8 @@ is required for local development.
 
 ## Development
 
-Use the Skulpt revision shipped in Anvil's client bundle.
-[Pinned revision `8b57825df`](https://github.com/anvil-works/skulpt/commit/8b57825df89c64fbf5ea104bc5530b05e091fcb1)
-
-An existing local `dist` is enough. The checked-in Anvil bundle at
-`runtime/client/js/lib` also works as `SKULPT_DIST`.
+Use a Skulpt build with `unittest.TestCase.run` for `TestCase` discovery and
+execution. CI builds the [pinned Skulpt revision](https://github.com/anvil-works/skulpt/commit/e930f7c030f67d20992ec577d812ca7c5b486d94).
 
 ```sh
 pnpm install

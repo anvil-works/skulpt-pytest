@@ -178,26 +178,38 @@ def _check_unittest_skip(case):
             raise unittest.SkipTest(getattr(item, '__unittest_skip_why__', ''))
 
 
+class _UnittestResult:
+    def __init__(self, errors):
+        self._errors = errors
+
+    def startTest(self, test):
+        pass
+
+    def stopTest(self, test):
+        pass
+
+    def addSuccess(self, test):
+        pass
+
+    def addError(self, test, err):
+        self._errors.append(('call', err[1]))
+
+    addFailure = addError
+
+    def addSkip(self, test, reason):
+        self._errors.append(('call', unittest.SkipTest(reason)))
+
+
 def _run_unittest(case, errors):
     cls, method_name = case.unittest_method
+    if not hasattr(unittest.TestCase, 'run'):
+        raise NotImplementedError('unittest methods require a Skulpt build with TestCase.run')
     if any(callable(getattr(cls, name, None)) for name in ('setUpClass', 'tearDownClass')):
         raise NotImplementedError('unittest class setup and teardown are not supported yet')
-    instance = cls()
-    # Pytest reports unittest's per-method lifecycle in its call phase.
-    for name in ('setUp', method_name, 'tearDown'):
-        failures = instance.assertFailed
-        try:
-            returned = getattr(instance, name)()
-            if isinstance(returned, types.GeneratorType):
-                returned.close()
-                raise NotImplementedError('generator tests are not supported')
-        except BaseException as error:
-            errors.append(('call', error))
-        # Skulpt's legacy assertions print and count failures without raising.
-        if instance.assertFailed > failures:
-            errors.append(('call', AssertionError('unittest assertion failed (see captured stdout)')))
-        if name == 'setUp' and errors:
-            break
+    code = getattr(case.function, '__code__', None)
+    if code is not None and code.co_flags & 0x20:  # CO_GENERATOR
+        raise NotImplementedError('generator tests are not supported')
+    cls(method_name)(result=_UnittestResult(errors))
 
 
 def _error(error, phase):
