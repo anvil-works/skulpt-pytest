@@ -9,7 +9,7 @@ function finished(events: TestEvent[]) {
     .filter(test => test.result.status === "finished");
 }
 
-test("runs upstream unittest methods and reports legacy assertion failures", async () => {
+test("runs upstream unittest methods and reports the assertion traceback", async () => {
   const { Sk } = runtime();
   const result = await runTests(Sk, { files: { "test_simple.py": upstream("unittest_simple") } });
   expect(result.exitCode).toBe(1);
@@ -17,7 +17,10 @@ test("runs upstream unittest methods and reports legacy assertion failures", asy
     ["test_simple.py::MyTestCase::test_failing", "failed"],
     ["test_simple.py::MyTestCase::testpassing", "passed"],
   ]);
-  expect(finished(result.events)[0].result.stdout).toContain("Expected foo to equal bar");
+  expect(finished(result.events)[0].result.errors?.[0]).toMatchObject({
+    type: "AssertionError",
+    traceback: expect.stringContaining("self.assertEqual('foo', 'bar')"),
+  });
 });
 
 test("reuses upstream unittest instance and lifecycle cases", async () => {
@@ -72,6 +75,18 @@ class TestKnown(unittest.TestCase):
   const [failure, pass] = finished(result.events).map(test => test.result);
   expect(failure).toMatchObject({ outcome: "xfailed", reason: "known" });
   expect(pass.errors?.[0].message).toBe("[XPASS(strict)] known");
+});
+
+test("does not silently pass a unittest generator method", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: { "test_generator_method.py": `import unittest
+
+class TestGenerator(unittest.TestCase):
+    def test_generator(self):
+        yield 1
+` } });
+  expect(result.exitCode).toBe(1);
+  expect(finished(result.events)[0].result.errors?.[0].message).toBe("generator tests are not supported");
 });
 
 test("runs pytest's exception assertion bodies", async () => {
