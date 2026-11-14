@@ -106,10 +106,11 @@ is required for local development.
 
 ## Development
 
-Use the Skulpt foundation at
-[2f6f0b3b](https://github.com/anvil-works/skulpt/commit/2f6f0b3b93c8d7e0ec70ed8fe352c5b53dd498c7),
-the tip of [the prerequisite PR stack](https://github.com/anvil-works/skulpt/pull/87).
-An existing local `dist` is enough; no npm publish is needed.
+Use the Skulpt revision shipped in Anvil's client bundle.
+[Pinned revision `8b57825df`](https://github.com/anvil-works/skulpt/commit/8b57825df89c64fbf5ea104bc5530b05e091fcb1)
+
+An existing local `dist` is enough. The checked-in Anvil bundle at
+`runtime/client/js/lib` also works as `SKULPT_DIST`.
 
 ```sh
 pnpm install
