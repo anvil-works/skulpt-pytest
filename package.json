@@ -9,6 +9,9 @@
   "repository": { "type": "git", "url": "https://github.com/anvil-works/skulpt-pytest.git" },
   "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
   "files": ["dist", "licenses", "docs"],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "rslib build",
     "dev": "rsbuild dev",
@@ -17,7 +20,8 @@
     "test:watch": "rstest",
     "test:package": "node --allow-natives-syntax scripts/check-package.mjs",
     "check": "tsc --noEmit",
-    "prepack": "pnpm build"
+    "prepack": "pnpm build",
+    "publish:canary": "node scripts/publish-canary.mjs"
   },
   "devDependencies": {
     "@rsbuild/core": "2.2.14",
