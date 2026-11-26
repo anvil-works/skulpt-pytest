@@ -96,8 +96,11 @@ including when the host callback aborts a run.
 `unittest.TestCase` methods run on a fresh instance with `setUp` and `tearDown`.
 Unittest assertions stop the method on failure and appear in its traceback.
 Subclass constructors must accept the method name, as in CPython.
-Unittest class/module hooks, fixture arguments, parametrisation and plain pytest
-test classes are outside this subset.
+Class and module setup/teardown run around the selected tests. `expectedFailure`
+reports an expected failure or failing unexpected success. Failed subtests keep
+their labels and tracebacks in the parent method's result. Class cleanup and cleanup registered by a module hook run at the end of their
+respective scopes. Fixture arguments, parametrisation and plain pytest test
+classes are outside this subset.
 
 Class/package/dynamic fixture scopes, parametrized module/session fixtures,
 parametrisation `scope=`, keyword-only/positional-only fixture arguments,
@@ -113,7 +116,7 @@ is required for local development.
 ## Development
 
 Use a Skulpt build with `unittest.TestCase.run` for `TestCase` discovery and
-execution. CI builds the [pinned Skulpt revision](https://github.com/anvil-works/skulpt/commit/e930f7c030f67d20992ec577d812ca7c5b486d94).
+execution. CI builds the [pinned Skulpt revision](https://github.com/anvil-works/skulpt/commit/cef44e2a945e698d63f05588acc17def656a9c5f).
 
 ```sh
 pnpm install
