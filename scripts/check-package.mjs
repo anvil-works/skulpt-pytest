@@ -8,7 +8,7 @@ import { installPytest, runTests } from '../dist/index.js';
 
 const directory = resolve(process.env.SKULPT_DIST ?? '../skulpt/dist');
 const consumer = resolve('.scratch/package-consumer.ts');
-const source = "import { runTests } from '@anvil-works/skulpt-pytest'; const result: Promise<{exitCode: number}> = runTests(null as never, {files: {}});";
+const source = "import { runTests } from '@anvil-works/skulpt-pytest'; const result: Promise<{exitCode: number}> = runTests(null as never, {files: {}, targets: [], keywordExpression: 'ok', collectOnly: true});";
 const options = { strict: true, noEmit: true, skipLibCheck: true, module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, target: ts.ScriptTarget.ES2022 };
 const host = ts.createCompilerHost(options);
 const original = host.getSourceFile.bind(host);

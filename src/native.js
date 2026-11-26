@@ -18,6 +18,21 @@ var $builtinmodule = function () {
             $flags: { NoArgs: true },
             $textsig: "($module, /)",
         },
+        keyword_expression: {
+            $meth() {
+                const expression = Sk.pytest.keywordExpression;
+                return expression == null ? Sk.builtin.none.none$ : new Sk.builtin.str(expression);
+            },
+            $flags: { NoArgs: true },
+            $textsig: "($module, /)",
+        },
+        collect_only: {
+            $meth() {
+                return Sk.pytest.collectOnly ? Sk.builtin.bool.true$ : Sk.builtin.bool.false$;
+            },
+            $flags: { NoArgs: true },
+            $textsig: "($module, /)",
+        },
         emit: {
             $meth(event) {
                 Sk.pytest.emit(Sk.ffi.remapToJs(event));

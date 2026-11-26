@@ -26,6 +26,10 @@ def test_arguments():
     with pytest.raises(TypeError):
         host.targets(targets=[])
     with pytest.raises(TypeError):
+        host.keyword_expression('unexpected')
+    with pytest.raises(TypeError):
+        host.collect_only('unexpected')
+    with pytest.raises(TypeError):
         host.emit()
     with pytest.raises(TypeError):
         host.emit({}, {})
@@ -217,4 +221,143 @@ def test_ok():
   expect(finished(result.events).map(({ test_id, result }) => [test_id, result.outcome])).toEqual([
     ["test_proxy.py::test_ok", "passed"],
   ]);
+});
+
+test("supports collectOnly without running tests or fixtures", async () => {
+  const { Sk } = runtime();
+  const files = {
+    "client_tests/conftest.py": `import pytest
+@pytest.fixture(scope="session", autouse=True)
+def fail_if_run():
+    raise RuntimeError("fixture must not run during collectOnly")
+`,
+    "client_tests/test_alpha.py": `import pytest
+@pytest.mark.parametrize("n", [1, 2])
+def test_param(n):
+    raise RuntimeError("test must not run")
+`,
+    "client_tests/test_beta.py": `def test_click():
+    raise RuntimeError("test must not run")
+`,
+  };
+  const result = await runTests(Sk, { files, collectOnly: true });
+  expect(result.exitCode).toBe(0);
+  expect(result.events.map(event => event.type)).toEqual(["test_run_update", "discovered_tests", "test_run_update"]);
+  expect(result.events[1]).toEqual({
+    type: "discovered_tests",
+    tests: [
+      { test_id: "client_tests/test_alpha.py::test_param[1]", file_path: "client_tests/test_alpha.py", line: 2, name: "test_param[1]" },
+      { test_id: "client_tests/test_alpha.py::test_param[2]", file_path: "client_tests/test_alpha.py", line: 2, name: "test_param[2]" },
+      { test_id: "client_tests/test_beta.py::test_click", file_path: "client_tests/test_beta.py", line: 1, name: "test_click" },
+    ],
+  });
+  expect(result.events[2]).toEqual({ type: "test_run_update", status: "complete", exit_code: "OK" });
+
+  const empty = await runTests(Sk, { files: {}, collectOnly: true });
+  expect(empty.exitCode).toBe(5);
+  expect(empty.events.at(-1)).toEqual({ type: "test_run_update", status: "complete", exit_code: "NO_TESTS_COLLECTED" });
+
+  const deselected = await runTests(Sk, { files, collectOnly: true, keywordExpression: "nonexistent" });
+  expect(deselected.exitCode).toBe(5);
+  expect(deselected.events.at(-1)).toEqual({ type: "test_run_update", status: "complete", exit_code: "NO_TESTS_COLLECTED" });
+});
+
+test("filters tests with pytest -k keyword expressions and reports syntax errors as USAGE_ERROR", async () => {
+  const { Sk } = runtime();
+  const files = {
+    "client_tests/sub/test_ui.py": `import pytest
+
+@pytest.mark.parametrize("color", ["Red", "Blue"])
+def test_color(color):
+    assert color in ("Red", "Blue")
+
+def test_fast():
+    assert True
+test_fast.smoke = True
+
+def test_box_open():
+    assert True
+`,
+    "client_tests/test_other.py": `import pytest
+pytestmark = pytest.mark.skipif(False, reason="active")
+
+def test_other_ok():
+    assert True
+`,
+  };
+
+  const runFilter = async (keywordExpression: string, targets?: string[]) => {
+    const result = await runTests(Sk, { files, keywordExpression, ...(targets ? { targets } : {}) });
+    return {
+      exitCode: result.exitCode,
+      discovered: result.events.find(e => e.type === "discovered_tests")?.tests.length,
+      ran: finished(result.events).map(t => t.test_id),
+      complete: result.events.at(-1),
+    };
+  };
+
+  expect(await runFilter("color and blue")).toMatchObject({
+    exitCode: 0,
+    discovered: 5,
+    ran: ["client_tests/sub/test_ui.py::test_color[Blue]"],
+  });
+  expect(await runFilter("test_color[Red] or (box and open)")).toMatchObject({
+    exitCode: 0,
+    ran: [
+      "client_tests/sub/test_ui.py::test_color[Red]",
+      "client_tests/sub/test_ui.py::test_box_open",
+    ],
+  });
+  expect(await runFilter("not color and not skipif")).toMatchObject({
+    exitCode: 0,
+    ran: [
+      "client_tests/sub/test_ui.py::test_fast",
+      "client_tests/sub/test_ui.py::test_box_open",
+    ],
+  });
+  expect(await runFilter("smoke or skipif")).toMatchObject({
+    exitCode: 0,
+    ran: [
+      "client_tests/sub/test_ui.py::test_fast",
+      "client_tests/test_other.py::test_other_ok",
+    ],
+  });
+  expect(await runFilter("sub and not not parametrize", ["client_tests/sub/test_ui.py"])).toMatchObject({
+    exitCode: 0,
+    ran: [
+      "client_tests/sub/test_ui.py::test_color[Red]",
+      "client_tests/sub/test_ui.py::test_color[Blue]",
+    ],
+  });
+  expect(await runFilter("   ")).toMatchObject({
+    exitCode: 0,
+    ran: [
+      "client_tests/sub/test_ui.py::test_color[Red]",
+      "client_tests/sub/test_ui.py::test_color[Blue]",
+      "client_tests/sub/test_ui.py::test_fast",
+      "client_tests/sub/test_ui.py::test_box_open",
+      "client_tests/test_other.py::test_other_ok",
+    ],
+  });
+  expect(await runFilter("AND")).toMatchObject({
+    exitCode: 5,
+    ran: [],
+    complete: { exit_code: "NO_TESTS_COLLECTED" },
+  });
+  expect(await runFilter("test_ui.py::test_color")).toMatchObject({
+    exitCode: 5,
+    ran: [],
+    complete: { exit_code: "NO_TESTS_COLLECTED" },
+  });
+
+  for (const invalid of ["color and", "and color", "color fast", "(color", "color)", "()", "not", "color && fast", "color(a=1)"]) {
+    const res = await runFilter(invalid);
+    expect(res.exitCode).toBe(4);
+    expect(res.ran).toEqual([]);
+    expect(res.complete).toMatchObject({
+      status: "complete",
+      exit_code: "USAGE_ERROR",
+      error: { type: "UsageError", message: expect.stringContaining("Wrong expression passed to '-k'") },
+    });
+  }
 });

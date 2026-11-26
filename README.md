@@ -29,6 +29,11 @@ their temporary module/source-cache entries afterwards. Imported app state
 remains owned by the host; use a fresh browser/runtime for a fresh app.
 
 `targets` selects virtual directories, files or `file.py::test_function` IDs.
+`keywordExpression` filters collected tests with pytest's `-k` boolean substring
+syntax (`and`, `or`, `not`, parentheses; matching path segments, test names,
+parametrize IDs, markers and function attributes; invalid syntax exits 4).
+`collectOnly: true` discovers tests and validates selection without running any
+tests or fixtures, omitting `counts` from the completion event.
 Discovery imports all test modules before selection so it can report the full
 inventory; a collection error in any of them prevents execution.
 Module-level skips are reported in the completion event's `collection_skips`

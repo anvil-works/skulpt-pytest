@@ -32,6 +32,8 @@ export interface RunOptions {
   /** Python source keyed by virtual path, including any conftest.py files. */
   files: Record<string, string>;
   targets?: string[];
+  keywordExpression?: string;
+  collectOnly?: boolean;
   onEvent?: (event: TestEvent) => void;
 }
 

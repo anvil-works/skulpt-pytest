@@ -1,10 +1,11 @@
 """Collect manifest tests and run public pytest cases in the host Python environment."""
 import linecache
+import re
 import sys
 import time
 import traceback
 import types
-from _skulpt_pytest import files, targets, emit
+from _skulpt_pytest import collect_only, emit, files, keyword_expression, targets
 from . import Failed, Skipped, XFailed, _Fixture
 from ._fixtures import FixtureSession, _arguments, _definitions
 from ._capture import capture_phase
@@ -266,6 +267,127 @@ def _add_fixtures(definitions, module):
             definitions.setdefault(value.name, []).append(value)
 
 
+_KEYWORD_IDENT_RE = re.compile(r'(?:\w|:|\+|-|\.|\[|\]|\\|/)+')
+_TOKEN_NAMES = {
+    'LPAREN': 'left parenthesis',
+    'RPAREN': 'right parenthesis',
+    'OR': 'or',
+    'AND': 'and',
+    'NOT': 'not',
+    'IDENT': 'identifier',
+    'EOF': 'end of input',
+}
+
+
+class _ExpressionParseError(Exception):
+    def __init__(self, column, message):
+        super().__init__('at column %d: %s' % (column, message))
+
+
+def _lex_keyword_expression(text):
+    tokens = []
+    pos = 0
+    length = len(text)
+    while pos < length:
+        ch = text[pos]
+        if ch in (' ', '\t'):
+            pos += 1
+        elif ch == '(':
+            tokens.append(('LPAREN', '(', pos))
+            pos += 1
+        elif ch == ')':
+            tokens.append(('RPAREN', ')', pos))
+            pos += 1
+        else:
+            match = _KEYWORD_IDENT_RE.match(text[pos:])
+            if match is None:
+                raise _ExpressionParseError(pos + 1, 'unexpected character "%s"' % ch)
+            value = match.group(0)
+            if value == 'or':
+                tokens.append(('OR', value, pos))
+            elif value == 'and':
+                tokens.append(('AND', value, pos))
+            elif value == 'not':
+                tokens.append(('NOT', value, pos))
+            else:
+                tokens.append(('IDENT', value, pos))
+            pos += len(value)
+    tokens.append(('EOF', '', pos))
+    return tokens
+
+
+def _compile_keyword_expression(text):
+    tokens = _lex_keyword_expression(text)
+    index = [0]
+
+    def current():
+        return tokens[index[0]]
+
+    def accept(kind):
+        token = current()
+        if token[0] == kind:
+            index[0] += 1
+            return token
+        return None
+
+    def reject(*expected):
+        token = current()
+        expected_str = ' OR '.join(_TOKEN_NAMES[kind] for kind in expected)
+        raise _ExpressionParseError(
+            token[2] + 1,
+            'expected %s; got %s' % (expected_str, _TOKEN_NAMES[token[0]]),
+        )
+
+    def parse_or():
+        parts = [parse_and()]
+        while accept('OR'):
+            parts.append(parse_and())
+        if len(parts) == 1:
+            return parts[0]
+        return lambda names, parts=parts: any(part(names) for part in parts)
+
+    def parse_and():
+        parts = [parse_not()]
+        while accept('AND'):
+            parts.append(parse_not())
+        if len(parts) == 1:
+            return parts[0]
+        return lambda names, parts=parts: all(part(names) for part in parts)
+
+    def parse_not():
+        if accept('NOT'):
+            operand = parse_not()
+            return lambda names, op=operand: not op(names)
+        if accept('LPAREN'):
+            inner = parse_or()
+            if not accept('RPAREN'):
+                reject('RPAREN')
+            return inner
+        ident = accept('IDENT')
+        if ident is not None:
+            needle = ident[1].lower()
+            return lambda names, needle=needle: any(needle in name for name in names)
+        reject('NOT', 'LPAREN', 'IDENT')
+
+    expr = parse_or()
+    if not accept('EOF'):
+        reject('EOF')
+    return expr
+
+
+def _case_keywords(case):
+    names = set(case.path.split('/'))
+    names.update(case.name.split('::'))
+    for marker in case.marks:
+        names.add(marker.name)
+    func_dict = getattr(case.function, '__dict__', None)
+    if func_dict:
+        for key in func_dict:
+            if key != '_pytest_marks':
+                names.add(key)
+    return [name.lower() for name in names if name]
+
+
 def _selected(case, selection):
     return not selection or any(target == '.' or case.test_id == target or case.path == target
                                or case.path.startswith(target.rstrip('/') + '/')
@@ -275,6 +397,9 @@ def _selected(case, selection):
 def run(args):
     sources = files()
     selection = targets() if args is None else args
+    raw_keyword_expr = keyword_expression() if args is None else None
+    keyword_expr = raw_keyword_expr.strip() if isinstance(raw_keyword_expr, str) else ''
+    collect_only_mode = bool(collect_only()) if args is None else False
     if any(target.startswith('-') for target in selection):
         raise NotImplementedError('pytest command-line flags are not yet supported')
     modules, module_names, load_errors = {}, [], {}
@@ -346,7 +471,9 @@ def run(args):
             {'test_id': case.test_id, 'file_path': case.path, 'line': case.function.__code__.co_firstlineno, 'name': case.name}
             for case in tests]})
         counts['skipped'] += len(collection_skips)
-        complete = {'type': 'test_run_update', 'status': 'complete', 'counts': counts}
+        complete = {'type': 'test_run_update', 'status': 'complete'}
+        if not collect_only_mode:
+            complete['counts'] = counts
         if collection_skips:
             complete['collection_skips'] = list(collection_skips.values())
         if collection_errors:
@@ -361,6 +488,19 @@ def run(args):
                           error={'type': 'UsageError', 'message': 'test target not found: ' + target}))
                 return 4
         selected = [case for case in tests if _selected(case, selection)]
+        if keyword_expr:
+            try:
+                matcher = _compile_keyword_expression(keyword_expr)
+            except _ExpressionParseError as error:
+                emit(dict(complete, exit_code='USAGE_ERROR',
+                          error={'type': 'UsageError',
+                                 'message': "Wrong expression passed to '-k': %s: %s" % (keyword_expr, error)}))
+                return 4
+            selected = [case for case in selected if matcher(_case_keywords(case))]
+        if collect_only_mode:
+            code = 0 if selected else 5
+            emit(dict(complete, exit_code={0: 'OK', 5: 'NO_TESTS_COLLECTED'}[code]))
+            return code
         emit({'type': 'test_run_update', 'status': 'running_tests'})
         for index, case in enumerate(selected):
             emit({'type': 'test_updates', 'tests': [{'test_id': case.test_id, 'result': {'status': 'running'}}]})
