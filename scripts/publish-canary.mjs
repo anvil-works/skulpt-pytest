@@ -7,31 +7,42 @@
  *   pnpm run publish:canary
  *   pnpm run publish:canary -- --version 0.0.1-canary.3
  *   pnpm run publish:canary -- --allow-dirty --dry-run
+ *   pnpm run publish:canary -- --skip-tests --dry-run
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
 
 const rootDir = fileURLToPath(new URL('..', import.meta.url));
 const pkgPath = resolve(rootDir, 'package.json');
 
-const args = process.argv.slice(2).filter((arg) => arg !== '--');
-const dryRun = args.includes('--dry-run');
-const allowDirty = args.includes('--allow-dirty');
-const skipTests = args.includes('--skip-tests');
-const versionEq = args.find((arg) => arg.startsWith('--version='));
-const versionFlagIdx = args.indexOf('--version');
-let requestedVersion;
-if (versionEq) {
-  requestedVersion = versionEq.slice('--version='.length);
-} else if (versionFlagIdx !== -1) {
-  requestedVersion = args[versionFlagIdx + 1];
-  if (!requestedVersion || requestedVersion.startsWith('-')) {
-    console.error('--version requires a value (e.g. --version 0.0.1-canary.1).');
-    process.exit(1);
-  }
+const rawArgs = process.argv.slice(2);
+const cliArgs = rawArgs[0] === '--' ? rawArgs.slice(1) : rawArgs;
+let parsedArgs;
+try {
+  parsedArgs = parseArgs({
+    args: cliArgs,
+    allowPositionals: false,
+    strict: true,
+    options: {
+      'dry-run': { type: 'boolean', default: false },
+      'allow-dirty': { type: 'boolean', default: false },
+      'skip-tests': { type: 'boolean', default: false },
+      version: { type: 'string' },
+    },
+  });
+} catch (err) {
+  console.error(err.message);
+  process.exit(1);
 }
+
+const dryRun = parsedArgs.values['dry-run'];
+const allowDirty = parsedArgs.values['allow-dirty'];
+const skipTests = parsedArgs.values['skip-tests'];
+const requestedVersion = parsedArgs.values.version;
 
 const CANARY_RE = /^(\d+\.\d+\.\d+)-canary\.(0|[1-9]\d*)$/;
 
@@ -41,32 +52,38 @@ function run(cmd, cmdArgs, opts = {}) {
     throw res.error;
   }
   if (res.status !== 0) {
-    const err = new Error(`${cmd} ${cmdArgs.join(' ')} exited with code ${res.status ?? 1}`);
+    const err = new Error();
     err.exitCode = res.status ?? 1;
     throw err;
   }
 }
 
-function getPublishedCanaryVersions(pkgName) {
-  try {
-    const out = execFileSync('npm', ['view', pkgName, 'versions', '--json'], {
-      cwd: rootDir,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-    if (!out) return [];
-    const parsed = JSON.parse(out);
-    return Array.isArray(parsed) ? parsed : [parsed];
-  } catch {
-    // Package not published yet.
-    return [];
+function getPublishedVersions(pkgName) {
+  const res = spawnSync('npm', ['view', pkgName, 'versions', '--json'], {
+    cwd: rootDir,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  if (res.error) {
+    throw res.error;
   }
+  if (res.status !== 0) {
+    const details = `${res.stderr ?? ''}\n${res.stdout ?? ''}`;
+    if (/\bE404\b|404 Not Found|is not in this registry/i.test(details)) {
+      return [];
+    }
+    throw new Error(`Failed to query published versions for ${pkgName}:\n${details.trim()}`);
+  }
+  const out = (res.stdout ?? '').trim();
+  if (!out) return [];
+  const parsed = JSON.parse(out);
+  return Array.isArray(parsed) ? parsed : [parsed];
 }
 
 function nextCanaryVersion(pkgName, currentVersion) {
   const baseMatch = /^(\d+\.\d+\.\d+)/.exec(currentVersion);
   const base = baseMatch ? baseMatch[1] : '0.0.1';
-  const existing = getPublishedCanaryVersions(pkgName);
+  const existing = getPublishedVersions(pkgName);
   let maxN = 0;
   for (const v of existing) {
     const m = CANARY_RE.exec(v);
@@ -88,7 +105,13 @@ if (!allowDirty) {
 
 const originalPkgText = readFileSync(pkgPath, 'utf8');
 const pkg = JSON.parse(originalPkgText);
-const targetVersion = requestedVersion ?? nextCanaryVersion(pkg.name, pkg.version);
+let targetVersion;
+try {
+  targetVersion = requestedVersion ?? nextCanaryVersion(pkg.name, pkg.version);
+} catch (err) {
+  console.error(err.message ?? err);
+  process.exit(1);
+}
 
 if (!CANARY_RE.test(targetVersion)) {
   console.error(`Canary releases must match X.Y.Z-canary.N; got "${targetVersion}".`);
@@ -97,6 +120,7 @@ if (!CANARY_RE.test(targetVersion)) {
 
 console.log(`Preparing ${dryRun ? '(dry-run) ' : ''}${pkg.name}@${targetVersion} (dist-tag: canary)...`);
 
+let stageDir;
 try {
   run('pnpm', ['run', 'check']);
   run('pnpm', ['run', 'build']);
@@ -107,24 +131,32 @@ try {
     console.log('Note: SKULPT_DIST not set; skipping Skulpt runtime test suite (set SKULPT_DIST to run it before publishing).');
   }
 
-  const updatedPkg = { ...pkg, version: targetVersion };
-  writeFileSync(pkgPath, JSON.stringify(updatedPkg, null, 2) + '\n', 'utf8');
-
-  try {
-    const publishArgs = ['publish', '--tag', 'canary', '--access', 'public', '--no-git-checks'];
-    if (dryRun) {
-      publishArgs.push('--dry-run');
+  // Publish from a staging directory so the checkout's package.json is never dirtied, even on SIGINT.
+  stageDir = mkdtempSync(join(tmpdir(), 'skulpt-pytest-canary-'));
+  const entriesToStage = new Set([...(pkg.files ?? []), 'README.md', 'LICENSE']);
+  for (const entry of entriesToStage) {
+    const src = resolve(rootDir, entry);
+    if (existsSync(src)) {
+      cpSync(src, join(stageDir, entry), { recursive: true });
     }
-    run('pnpm', publishArgs);
-  } finally {
-    // Keep canary versions ephemeral rather than dirtying the branch.
-    writeFileSync(pkgPath, originalPkgText, 'utf8');
   }
+  const updatedPkg = { ...pkg, version: targetVersion };
+  writeFileSync(join(stageDir, 'package.json'), JSON.stringify(updatedPkg, null, 2) + '\n', 'utf8');
+
+  const publishArgs = ['publish', '--tag', 'canary', '--access', 'public', '--no-git-checks', '--ignore-scripts'];
+  if (dryRun) {
+    publishArgs.push('--dry-run');
+  }
+  run('pnpm', publishArgs, { cwd: stageDir });
 } catch (err) {
   if (!err?.exitCode) {
     console.error(err);
   }
   process.exit(err?.exitCode ?? 1);
+} finally {
+  if (stageDir) {
+    rmSync(stageDir, { recursive: true, force: true });
+  }
 }
 
 console.log(dryRun ? '\nDry-run complete. To consume this canary in Anvil once published:' : '\nDone! To consume this canary in Anvil:');

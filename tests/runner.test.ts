@@ -213,9 +213,13 @@ class LazyProxy:
         raise RuntimeError("unexpected attribute lookup: " + name)
 
 app_tables = LazyProxy()
+TestProxy = LazyProxy()
+test_proxy = LazyProxy()
 
 def test_ok():
     assert type(app_tables) is LazyProxy
+    assert type(TestProxy) is LazyProxy
+    assert type(test_proxy) is LazyProxy
 ` } });
   expect(result.exitCode).toBe(0);
   expect(finished(result.events).map(({ test_id, result }) => [test_id, result.outcome])).toEqual([
@@ -344,13 +348,41 @@ def test_other_ok():
     ran: [],
     complete: { exit_code: "NO_TESTS_COLLECTED" },
   });
+  const emptySelection = await runTests(Sk, { files, keywordExpression: "AND" });
+  expect(emptySelection.events.some(e => e.type === "test_run_update" && e.status === "running_tests")).toBe(false);
+
   expect(await runFilter("test_ui.py::test_color")).toMatchObject({
     exitCode: 5,
     ran: [],
     complete: { exit_code: "NO_TESTS_COLLECTED" },
   });
 
-  for (const invalid of ["color and", "and color", "color fast", "(color", "color)", "()", "not", "color && fast", "color(a=1)"]) {
+  const colonParam = await runTests(Sk, {
+    files: {
+      "test_colon.py": `import pytest
+@pytest.mark.parametrize("label", ["v1"], ids=["http::ok"])
+def test_param(label):
+    assert label == "v1"
+`,
+    },
+    keywordExpression: "http::ok",
+  });
+  expect(colonParam.exitCode).toBe(0);
+  expect(finished(colonParam.events).map(t => t.test_id)).toEqual(["test_colon.py::test_param[http::ok]"]);
+
+  const badExprWithCollectionError = await runTests(Sk, {
+    files: { "test_broken.py": "def broken(" },
+    keywordExpression: "color and",
+  });
+  expect(badExprWithCollectionError.exitCode).toBe(4);
+  expect(badExprWithCollectionError.events.at(-1)).toMatchObject({
+    status: "complete",
+    exit_code: "USAGE_ERROR",
+    error: { type: "UsageError", message: expect.stringContaining("Wrong expression passed to '-k'") },
+  });
+
+  const deepParens = "(".repeat(200) + "color" + ")".repeat(200);
+  for (const invalid of ["color and", "and color", "color fast", "(color", "color)", "()", "not", "color && fast", "color(a=1)", "color\n", deepParens]) {
     const res = await runFilter(invalid);
     expect(res.exitCode).toBe(4);
     expect(res.ran).toEqual([]);

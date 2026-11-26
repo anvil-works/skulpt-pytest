@@ -262,12 +262,14 @@ def _run_test(case, session, close_module, close_session):
 
 
 def _add_fixtures(definitions, module):
+    # Check type(...) directly to avoid triggering __getattr__ on lazy module proxies.
     for value in module.__dict__.values():
         if type(value) is _Fixture:
             definitions.setdefault(value.name, []).append(value)
 
 
-_KEYWORD_IDENT_RE = re.compile(r'(?:\w|:|\+|-|\.|\[|\]|\\|/)+')
+_KEYWORD_IDENT_RE = re.compile(r'[\w:+\-.\[\]\\/]+')
+_MAX_EXPR_DEPTH = 100
 _TOKEN_NAMES = {
     'LPAREN': 'left parenthesis',
     'RPAREN': 'right parenthesis',
@@ -319,6 +321,7 @@ def _lex_keyword_expression(text):
 def _compile_keyword_expression(text):
     tokens = _lex_keyword_expression(text)
     index = [0]
+    depth = [0]
 
     def current():
         return tokens[index[0]]
@@ -355,11 +358,25 @@ def _compile_keyword_expression(text):
         return lambda names, parts=parts: all(part(names) for part in parts)
 
     def parse_not():
-        if accept('NOT'):
-            operand = parse_not()
+        not_tok = accept('NOT')
+        if not_tok is not None:
+            depth[0] += 1
+            if depth[0] > _MAX_EXPR_DEPTH:
+                raise _ExpressionParseError(not_tok[2] + 1, 'expression is nested too deeply')
+            try:
+                operand = parse_not()
+            finally:
+                depth[0] -= 1
             return lambda names, op=operand: not op(names)
-        if accept('LPAREN'):
-            inner = parse_or()
+        lparen = accept('LPAREN')
+        if lparen is not None:
+            depth[0] += 1
+            if depth[0] > _MAX_EXPR_DEPTH:
+                raise _ExpressionParseError(lparen[2] + 1, 'expression is nested too deeply')
+            try:
+                inner = parse_or()
+            finally:
+                depth[0] -= 1
             if not accept('RPAREN'):
                 reject('RPAREN')
             return inner
@@ -377,7 +394,8 @@ def _compile_keyword_expression(text):
 
 def _case_keywords(case):
     names = set(case.path.split('/'))
-    names.update(case.name.split('::'))
+    names.add(case.name)
+    names.update(case.base_name.split('::'))
     for marker in case.marks:
         names.add(marker.name)
     func_dict = getattr(case.function, '__dict__', None)
@@ -398,7 +416,7 @@ def run(args):
     sources = files()
     selection = targets() if args is None else args
     raw_keyword_expr = keyword_expression() if args is None else None
-    keyword_expr = raw_keyword_expr.strip() if isinstance(raw_keyword_expr, str) else ''
+    keyword_expr = raw_keyword_expr.lstrip(' \t') if isinstance(raw_keyword_expr, str) else ''
     collect_only_mode = bool(collect_only()) if args is None else False
     if any(target.startswith('-') for target in selection):
         raise NotImplementedError('pytest command-line flags are not yet supported')
@@ -450,6 +468,7 @@ def run(args):
                 module = load(path)
                 _add_fixtures(definitions, module)
                 module_marks = _marks(getattr(module, 'pytestmark', ()))
+                # Check type(...) directly so lazy module globals (e.g. app_tables) do not trigger __getattr__.
                 for name, function in module.__dict__.items():
                     if name.startswith('Test') and issubclass(type(function), type):
                         raise NotImplementedError('test classes are not yet supported')
@@ -476,6 +495,15 @@ def run(args):
             complete['counts'] = counts
         if collection_skips:
             complete['collection_skips'] = list(collection_skips.values())
+        matcher = None
+        if keyword_expr:
+            try:
+                matcher = _compile_keyword_expression(keyword_expr)
+            except _ExpressionParseError as error:
+                emit(dict(complete, exit_code='USAGE_ERROR',
+                          error={'type': 'UsageError',
+                                 'message': "Wrong expression passed to '-k': %s: %s" % (keyword_expr, error)}))
+                return 4
         if collection_errors:
             emit(dict(complete, exit_code='INTERRUPTED', collection_errors=collection_errors))
             return 2
@@ -488,20 +516,14 @@ def run(args):
                           error={'type': 'UsageError', 'message': 'test target not found: ' + target}))
                 return 4
         selected = [case for case in tests if _selected(case, selection)]
-        if keyword_expr:
-            try:
-                matcher = _compile_keyword_expression(keyword_expr)
-            except _ExpressionParseError as error:
-                emit(dict(complete, exit_code='USAGE_ERROR',
-                          error={'type': 'UsageError',
-                                 'message': "Wrong expression passed to '-k': %s: %s" % (keyword_expr, error)}))
-                return 4
+        if matcher is not None:
             selected = [case for case in selected if matcher(_case_keywords(case))]
         if collect_only_mode:
-            code = 0 if selected else 5
-            emit(dict(complete, exit_code={0: 'OK', 5: 'NO_TESTS_COLLECTED'}[code]))
+            code, exit_code = (0, 'OK') if selected else (5, 'NO_TESTS_COLLECTED')
+            emit(dict(complete, exit_code=exit_code))
             return code
-        emit({'type': 'test_run_update', 'status': 'running_tests'})
+        if selected:
+            emit({'type': 'test_run_update', 'status': 'running_tests'})
         for index, case in enumerate(selected):
             emit({'type': 'test_updates', 'tests': [{'test_id': case.test_id, 'result': {'status': 'running'}}]})
             close_module = index + 1 == len(selected) or selected[index + 1].path != case.path
