@@ -262,7 +262,7 @@ def _run_test(case, session, close_module, close_session):
 
 def _add_fixtures(definitions, module):
     for value in module.__dict__.values():
-        if isinstance(value, _Fixture):
+        if type(value) is _Fixture:
             definitions.setdefault(value.name, []).append(value)
 
 
@@ -326,9 +326,9 @@ def run(args):
                 _add_fixtures(definitions, module)
                 module_marks = _marks(getattr(module, 'pytestmark', ()))
                 for name, function in module.__dict__.items():
-                    if name.startswith('Test') and isinstance(function, type):
+                    if name.startswith('Test') and issubclass(type(function), type):
                         raise NotImplementedError('test classes are not yet supported')
-                    if name.startswith('test_') and isinstance(function, types.FunctionType):
+                    if name.startswith('test_') and type(function) is types.FunctionType:
                         tests.extend(_cases(path, name, function, definitions, module_marks))
             except BaseException as error:
                 if isinstance(error, Skipped):

@@ -200,3 +200,21 @@ test("extends an ancestor fixture with the same fixture name", async () => {
   expect(result.exitCode).toBe(0);
   expect(finished(result.events)).toHaveLength(1);
 });
+
+test("does not trigger __getattr__ on lazy module-level proxies during collection", async () => {
+  const { Sk } = runtime();
+  const result = await runTests(Sk, { files: { "test_proxy.py": `
+class LazyProxy:
+    def __getattr__(self, name):
+        raise RuntimeError("unexpected attribute lookup: " + name)
+
+app_tables = LazyProxy()
+
+def test_ok():
+    assert type(app_tables) is LazyProxy
+` } });
+  expect(result.exitCode).toBe(0);
+  expect(finished(result.events).map(({ test_id, result }) => [test_id, result.outcome])).toEqual([
+    ["test_proxy.py::test_ok", "passed"],
+  ]);
+});
