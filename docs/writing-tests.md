@@ -1,6 +1,7 @@
 # Writing browser Python tests
 
-Use ordinary pytest function tests. The host supplies the sources under
+Use ordinary pytest function tests or supported `unittest.TestCase` methods.
+The host supplies the sources under
 `tests/client_tests/` and the app's Python modules; tests run inside Skulpt.
 
 ```python

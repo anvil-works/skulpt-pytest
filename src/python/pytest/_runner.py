@@ -5,6 +5,7 @@ import sys
 import time
 import traceback
 import types
+import unittest
 from _skulpt_pytest import collect_only, emit, files, keyword_expression, targets
 from . import Failed, Skipped, XFailed, _Fixture
 from ._fixtures import FixtureSession, _arguments, _definitions
@@ -13,14 +14,16 @@ from ._marks import _marks, _parameter_rows
 
 
 class _Case:
-    def __init__(self, path, name, function, definitions, marks, module_marks=()):
+    def __init__(self, path, name, function, definitions, marks, module_marks=(), unittest_method=None):
         self.path, self.base_name, self.function = path, name, function
         self.definitions, self._marks, self.module_marks = definitions, marks, list(module_marks)
         self.direct, self.indirect, self.fixture_params, self.ids = {}, {}, {}, []
         self.id = None
+        self.unittest_method = unittest_method
 
     def copy(self):
-        case = _Case(self.path, self.base_name, self.function, self.definitions, list(self._marks), self.module_marks)
+        case = _Case(self.path, self.base_name, self.function, self.definitions,
+                     list(self._marks), self.module_marks, self.unittest_method)
         case.direct, case.indirect = dict(self.direct), dict(self.indirect)
         case.fixture_params, case.ids = dict(self.fixture_params), list(self.ids)
         return case
@@ -148,6 +151,68 @@ def _cases(path, name, function, definitions, module_marks):
     return expanded
 
 
+def _unittest_cases(path, name, cls, definitions, module_marks):
+    if not getattr(cls, '__test__', True):
+        return
+    methods = []
+    for method_name in sorted(dir(cls)):
+        if method_name.startswith('test'):
+            method = getattr(cls, method_name)
+            if callable(method) and getattr(method, '__test__', True):
+                methods.append((method_name, method))
+    if not methods:
+        method = getattr(cls, 'runTest', None)
+        if callable(method):
+            methods.append(('runTest', method))
+    for method_name, method in methods:
+        marks = list(getattr(method, '_pytest_marks', ()))
+        if any(marker.name == 'parametrize' for marker in marks + module_marks):
+            raise NotImplementedError('parametrized unittest methods are not supported')
+        yield _Case(path, name + '::' + method_name, method, definitions, marks,
+                    module_marks, (cls, method_name))
+
+
+def _check_unittest_skip(case):
+    cls, _ = case.unittest_method
+    for item in (cls, case.function):
+        if getattr(item, '__unittest_skip__', False):
+            raise unittest.SkipTest(getattr(item, '__unittest_skip_why__', ''))
+
+
+class _UnittestResult:
+    def __init__(self, errors):
+        self._errors = errors
+
+    def startTest(self, test):
+        pass
+
+    def stopTest(self, test):
+        pass
+
+    def addSuccess(self, test):
+        pass
+
+    def addError(self, test, err):
+        self._errors.append(('call', err[1]))
+
+    addFailure = addError
+
+    def addSkip(self, test, reason):
+        self._errors.append(('call', unittest.SkipTest(reason)))
+
+
+def _run_unittest(case, errors):
+    cls, method_name = case.unittest_method
+    if not hasattr(unittest.TestCase, 'run'):
+        raise NotImplementedError('unittest methods require a Skulpt build with TestCase.run')
+    if any(callable(getattr(cls, name, None)) for name in ('setUpClass', 'tearDownClass')):
+        raise NotImplementedError('unittest class setup and teardown are not supported yet')
+    code = getattr(case.function, '__code__', None)
+    if code is not None and code.co_flags & 0x20:  # CO_GENERATOR
+        raise NotImplementedError('generator tests are not supported')
+    cls(method_name)(result=_UnittestResult(errors))
+
+
 def _error(error, phase):
     tb = error.__traceback__
     while tb is not None and tb.tb_frame.f_code.co_filename.startswith('src/lib/pytest/'):
@@ -194,6 +259,8 @@ def _run_test(case, session, close_module, close_session):
     raw_errors, called, expectation = [], False, None
     try:
         with capture_phase(context):
+            if case.unittest_method is not None:
+                _check_unittest_skip(case)
             expectation = _expectation(case.marks)
             if expectation and expectation[0] == 'skip':
                 raise Skipped(expectation[1])
@@ -206,14 +273,19 @@ def _run_test(case, session, close_module, close_session):
                 if marker.name == 'usefixtures':
                     for name in marker.args:
                         context.resolve(name)
-            arguments = context.arguments(case.function)
+            if case.unittest_method is None:
+                arguments = context.arguments(case.function)
         context.phase = 'call'
         with capture_phase(context):
-            returned = case.function(**arguments)
-            if isinstance(returned, types.GeneratorType):
-                returned.close()
-                raise NotImplementedError('generator tests are not supported')
-            called = True
+            if case.unittest_method is None:
+                returned = case.function(**arguments)
+                if isinstance(returned, types.GeneratorType):
+                    returned.close()
+                    raise NotImplementedError('generator tests are not supported')
+                called = True
+            else:
+                _run_unittest(case, raw_errors)
+                called = not raw_errors
     except BaseException as error:
         raw_errors.append((context.phase, error))
     finally:
@@ -224,7 +296,7 @@ def _run_test(case, session, close_module, close_session):
     errors, expected_errors, reason, skipped = [], [], None, False
     options = expectation[1] if expectation and expectation[0] == 'xfail' else None
     for phase, error in raw_errors:
-        if isinstance(error, Skipped):
+        if isinstance(error, (Skipped, unittest.SkipTest)):
             skipped, reason = True, str(error)
         elif isinstance(error, XFailed):
             expected_errors.append((phase, error))
@@ -409,6 +481,7 @@ def _case_keywords(case):
 def _selected(case, selection):
     return not selection or any(target == '.' or case.test_id == target or case.path == target
                                or case.path.startswith(target.rstrip('/') + '/')
+                               or (case.unittest_method is not None and case.test_id.startswith(target + '::'))
                                or case.path + '::' + case.base_name == target for target in selection)
 
 
@@ -470,9 +543,16 @@ def run(args):
                 module_marks = _marks(getattr(module, 'pytestmark', ()))
                 # Check type(...) directly so lazy module globals (e.g. app_tables) do not trigger __getattr__.
                 for name, function in module.__dict__.items():
-                    if name.startswith('Test') and issubclass(type(function), type):
+                    is_class = issubclass(type(function), type)
+                    if is_class and issubclass(function, unittest.TestCase):
+                        cases = list(_unittest_cases(path, name, function, definitions, module_marks))
+                        if cases and any(callable(getattr(module, hook, None))
+                                         for hook in ('setUpModule', 'tearDownModule')):
+                            raise NotImplementedError('unittest module setup and teardown are not supported yet')
+                        tests.extend(cases)
+                    elif name.startswith('Test') and is_class:
                         raise NotImplementedError('test classes are not yet supported')
-                    if name.startswith('test_') and type(function) is types.FunctionType:
+                    elif name.startswith('test_') and type(function) is types.FunctionType:
                         tests.extend(_cases(path, name, function, definitions, module_marks))
             except BaseException as error:
                 if isinstance(error, Skipped):
@@ -487,7 +567,8 @@ def run(args):
                 item['file_path'] = path
                 collection_errors.append(item)
         emit({'type': 'discovered_tests', 'tests': [
-            {'test_id': case.test_id, 'file_path': case.path, 'line': case.function.__code__.co_firstlineno, 'name': case.name}
+            {'test_id': case.test_id, 'file_path': case.path,
+             'line': getattr(getattr(case.function, '__code__', None), 'co_firstlineno', 1), 'name': case.name}
             for case in tests]})
         counts['skipped'] += len(collection_skips)
         complete = {'type': 'test_run_update', 'status': 'complete'}
